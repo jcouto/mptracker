@@ -9,7 +9,7 @@ import argparse
 from glob import glob
 from time import sleep
 import cv2
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 # Qt imports
 try:
     from PyQt5.QtWidgets import (QWidget,
