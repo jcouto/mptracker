@@ -10,6 +10,99 @@ import numpy as np
 from scipy.weave import inline
 import scipy.signal as signal
 
+def fitEllipse(points, orientation_tolerance = 1e-3):
+    '''
+    Fit ellipse to contour.
+    Usage:
+    (center_fit, 
+    (long_axis / 2.0,short_axis / 2.0),
+    (a,b,orientation_rad) = fitEllipse(points)
+    '''
+    if points is None or len(points) == 0:
+        print("Check inputs to fitEllipse.")
+        return (np.array([-1., -1.]), [np.nan,np.nan]),(0.0,np.Inf,np.nan)
+    if len(points) < 5:
+        print("Not enough points...")
+        return (np.array([-1., -1.]), [np.nan, np.nan]),(0.0,np.Inf,np.nan)
+    # remove bias of the ellipse - to make matrix inversion more accurate.
+    x = points[:, 0]
+    y = points[:, 1]
+    mean_x = np.mean(x)
+    mean_y = np.mean(y)
+    x = x - mean_x
+    y = y - mean_y
+    # Make x and y colum vectors
+    x.shape = (np.size(x), 1)
+    y.shape = (np.size(y), 1)
+    # the estimation for the conic equation of the ellipse
+    X = np.hstack((x ** 2, x * y, y ** 2, x, y))
+    try:
+        A = np.dot(np.sum(X, axis=0), np.linalg.inv(np.dot(X.transpose(), X)))
+    except np.linalg.LinAlgError:
+        print('A linear algebra error has occurred while ellipse fitting')
+        return (np.array([-1., -1.]), [np.nan,np.nan]),(0.0,np.Inf,np.nan)
+    # extract parameters from the conic equation
+    (a, b, c, d, e) = A
+    # remove the orientation from the ellipse
+    if min(np.abs(b / a), np.abs(b / c)) > orientation_tolerance:
+        orientation_rad = 1. / 2 * np.arctan(b / (c - a))
+        cos_phi = np.cos(orientation_rad)
+        sin_phi = np.sin(orientation_rad)
+        (a, b, c, d, e) = (a * cos_phi ** 2 - b * cos_phi * sin_phi + c
+                           * sin_phi ** 2, 0, a * sin_phi ** 2 + b
+                           * cos_phi * sin_phi + c * cos_phi ** 2, d
+                           * cos_phi - e * sin_phi, d * sin_phi + e
+                           * cos_phi)
+        (mean_x, mean_y) = (cos_phi * mean_x - sin_phi * mean_y, sin_phi
+                            * mean_x + cos_phi * mean_y)
+    else:
+        orientation_rad = 0
+        cos_phi = np.cos(orientation_rad)
+        sin_phi = np.sin(orientation_rad)
+    # check if conic equation represents an ellipse
+    test = a * c
+    # if we found an ellipse return it's data
+    if test > 0:
+        # make sure coefficients are positive as required
+        if a < 0:
+            (a, c, d, e) = (-a, -c, -d, -e)
+        # final ellipse parameters
+        X0 = mean_x - d / 2 / a
+        Y0 = mean_y - e / 2 / c
+        F = 1 + d ** 2 / (4 * a) + e ** 2 / (4 * c)
+        (a, b) = (np.sqrt(F / a), np.sqrt(F / c))
+        long_axis = 2 * np.max([a, b])
+        short_axis = 2 * np.min([a, b])
+        # rotate the axes backwards to find the center point of the original TILTED ellipse
+        R = np.array([[cos_phi, sin_phi], [-sin_phi, cos_phi]])
+        P_in = np.dot(R, np.array([[X0], [Y0]]))
+        X0_in = P_in[0]
+        Y0_in = P_in[1]
+        center_fit = np.array([X0_in[0], Y0_in[0]])
+        return (center_fit, (long_axis / 2.0,short_axis / 2.0)), (a,b,orientation_rad)
+    return (np.array([-1., -1.]), [np.nan, np.nan]),(0.0,np.Inf,np.nan)
+
+def medfilt(x, k = 5):
+    """Apply a length-k median filter to a 1D array x.
+    Boundaries are extended by repeating endpoints.
+    Borrowed from the web.
+    """
+    assert k % 2 == 1, "Median filter length must be odd."
+    assert x.ndim == 1, "Input must be one-dimensional."
+    k2 = (k - 1) // 2
+    y = np.zeros ((len (x), k), dtype=x.dtype)
+    y[:,k2] = x
+    for i in range (k2):
+        j = k2 - i
+        y[j:,i] = x[:-j]
+        y[:j,i] = x[0]
+        y[:-j,-(i+1)] = x[j:]
+        y[-j:,-(i+1)] = x[-1]
+    return np.nanmedian(y, axis=1)
+
+#############################################################################
+######################FOR THE STARBURST ALGORITHM############################
+#############################################################################
 def radial_transform(image, radii = None, alpha = 10, 
                      membuff=None):
     ''' Find points of interest in an image using the fast radial transform.
@@ -240,85 +333,7 @@ def separable_convolution2d(image, row, col, **kwargs):
     inline(code, ['image', 'row', 'col', 'firstpass', 'result'], verbose=0)
     return result
 
-#############################################################################
-#############################################################################
-#############################################################################
 
-def fitEllipse(points, orientation_tolerance = 1e-3):
-    '''
-    Fit ellipse to contour.
-    Usage:
-    (center_fit, 
-    (long_axis / 2.0,short_axis / 2.0),
-    (a,b,orientation_rad) = fitEllipse(points)
-    '''
-    if points is None or len(points) == 0:
-        print("Check inputs to fitEllipse.")
-        return (np.array([-1., -1.]), [np.nan,np.nan]),(0.0,np.Inf,np.nan)
-    if len(points) < 5:
-        print("Not enough points...")
-        return (np.array([-1., -1.]), [np.nan, np.nan]),(0.0,np.Inf,np.nan)
-    # remove bias of the ellipse - to make matrix inversion more accurate.
-    x = points[:, 0]
-    y = points[:, 1]
-    mean_x = np.mean(x)
-    mean_y = np.mean(y)
-    x = x - mean_x
-    y = y - mean_y
-    # Make x and y colum vectors
-    x.shape = (np.size(x), 1)
-    y.shape = (np.size(y), 1)
-    # the estimation for the conic equation of the ellipse
-    X = np.hstack((x ** 2, x * y, y ** 2, x, y))
-    try:
-        A = np.dot(np.sum(X, axis=0), np.linalg.inv(np.dot(X.transpose(), X)))
-    except np.linalg.LinAlgError:
-        print('A linear algebra error has occurred while ellipse fitting')
-        return (np.array([-1., -1.]), [np.nan,np.nan]),(0.0,np.Inf,np.nan)
-    # extract parameters from the conic equation
-    (a, b, c, d, e) = A
-    # remove the orientation from the ellipse
-    if min(np.abs(b / a), np.abs(b / c)) > orientation_tolerance:
-        orientation_rad = 1. / 2 * np.arctan(b / (c - a))
-        cos_phi = np.cos(orientation_rad)
-        sin_phi = np.sin(orientation_rad)
-        (a, b, c, d, e) = (a * cos_phi ** 2 - b * cos_phi * sin_phi + c
-                           * sin_phi ** 2, 0, a * sin_phi ** 2 + b
-                           * cos_phi * sin_phi + c * cos_phi ** 2, d
-                           * cos_phi - e * sin_phi, d * sin_phi + e
-                           * cos_phi)
-        (mean_x, mean_y) = (cos_phi * mean_x - sin_phi * mean_y, sin_phi
-                            * mean_x + cos_phi * mean_y)
-    else:
-        orientation_rad = 0
-        cos_phi = np.cos(orientation_rad)
-        sin_phi = np.sin(orientation_rad)
-    # check if conic equation represents an ellipse
-    test = a * c
-    # if we found an ellipse return it's data
-    if test > 0:
-        # make sure coefficients are positive as required
-        if a < 0:
-            (a, c, d, e) = (-a, -c, -d, -e)
-        # final ellipse parameters
-        X0 = mean_x - d / 2 / a
-        Y0 = mean_y - e / 2 / c
-        F = 1 + d ** 2 / (4 * a) + e ** 2 / (4 * c)
-        (a, b) = (np.sqrt(F / a), np.sqrt(F / c))
-        long_axis = 2 * np.max([a, b])
-        short_axis = 2 * np.min([a, b])
-        # rotate the axes backwards to find the center point of the original TILTED ellipse
-        R = np.array([[cos_phi, sin_phi], [-sin_phi, cos_phi]])
-        P_in = np.dot(R, np.array([[X0], [Y0]]))
-        X0_in = P_in[0]
-        Y0_in = P_in[1]
-        center_fit = np.array([X0_in[0], Y0_in[0]])
-        return (center_fit, (long_axis / 2.0,short_axis / 2.0)), (a,b,orientation_rad)
-    return (np.array([-1., -1.]), [np.nan, np.nan]),(0.0,np.Inf,np.nan)
-
-#############################################################################
-######################FOR THE STARBURST ALGORITHM############################
-#############################################################################
 def find_ray_boundaries(im, seed_point, zero_referenced_rays,
                         cutoff_index, threshold,x_axis,y_axis, **kwargs):
     """ Find where a set off rays crosses a threshold in an image
