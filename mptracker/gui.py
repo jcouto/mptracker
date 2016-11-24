@@ -29,10 +29,13 @@ try:
     from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
 except:
     print('PyQt5 not installed??')
+import pylab as plt
 # Local imports
 from .utils import *
 from .io import *
 from .tracker import *
+
+description = ''' GUI to define parameters and track the pupil.'''
 
 class MPTrackerWindow(QWidget):
     def __init__(self,targetpath = None,app = None):
@@ -206,9 +209,9 @@ class MPTrackerWindow(QWidget):
             self.wFrame.setValue(f)
             if not self.running:
                 break
-        print('Done in {0} frames in {1:3.1f} min'.format(f,
-                                                          (time.time()-ts)/60.))
-
+        print('Done {0} frames in {1:3.1f} min'.format(f,
+                                                       (time.time()-ts)/60.))
+    
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',

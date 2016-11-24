@@ -17,13 +17,12 @@ setup(
     license = 'GPL',
     packages = ['mptracker'],
     install_requires=[
-          'cv2',
           'mpi4py',
           'tifffile'
       ],
     entry_points = {
         'console_scripts': [
-            'mptracker-gui = mptracker:gui',
+            'mptracker-gui = mptracker.gui:main',
             ]
         }
     )
