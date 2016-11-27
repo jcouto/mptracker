@@ -41,6 +41,7 @@ def convertPixelToEyeCoords(eyeCorners,
                             eyeDiameterEstimate = 3.0):
     scaleFactor = eyeDiameterEstimate/np.sqrt(np.diff(eyeCorners[:,1])**2
                                                + np.diff(eyeCorners[:,0])**2)
+    # Get the diameter of a circle with the same area as the ellipse.
     diammm = np.sqrt(diamPix[:,0]/2.*diamPix[:,1]/2.*scaleFactor)
     [az,el,theta] = cart2sph(pupilPix[:,0],pupilPix[:,1],eyeDiameterEstimate/2)
     return az,el,diammm

@@ -9,6 +9,7 @@
 
 import sys
 import os
+from os.path import join as pjoin
 import numpy as np
 from glob import glob
 from tifffile import TiffFile
@@ -18,9 +19,23 @@ class TiffFileSequence(object):
     def __init__(self,targetpath = None,extension='tif'):
         '''Lets you access a sequence of TIFF files without noticing...'''
         self.path = os.path.dirname(targetpath)
-        self.filenames = np.sort(glob(targetpath + '*.' + extension))
+        self.basename = os.path.splitext(os.path.basename(targetpath))[0]
+        for f in range(len(self.basename)):
+            if not self.basename[-f].isdigit():
+                break
+        if not -f+1 == 0:
+            f = -f+1
+        else:
+            f = -1
+        self.basename = self.basename[:f]
+        filtered_filenames = []
+        filenames = np.sort(glob(pjoin(self.path,'*.' + extension)))
+        self.filenames = []
+        for f in filenames:
+            if self.basename in f:
+                self.filenames.append(f)
         if not len(self.filenames):
-            print('Wrong target path: ' + targetpath + '*.' + extension)
+            print('Wrong target path: ' + self.path + '*.' + extension)
             raise
         self.files = [TiffFile(f) for f in self.filenames]
         framesPerFile = []

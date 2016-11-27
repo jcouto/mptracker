@@ -47,8 +47,8 @@ class MPTrackerWindow(QWidget):
         tiffiles = np.sort(glob(os.environ['HOME']+
                                 '/temp/develop/pupil_tracking_mice/160927_JC021_lgnmov'+
                                 '/*.tif'))
-        dirname = os.path.dirname(tiffiles[0])
-        self.imgstack = TiffFileSequence(dirname+'/')
+        dirname = tiffiles[0]
+        self.imgstack = TiffFileSequence(dirname)
         self.tracker = MPTracker()
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
@@ -113,7 +113,7 @@ class MPTrackerWindow(QWidget):
         grid.addWidget(self.view,1,2,6,5)
         ####################
         # window geometry
-        self.setGeometry(100, 100, img.shape[1]*0.8, img.shape[0]*0.8)
+#        self.setGeometry(100, 100, img.shape[1]*0.8, img.shape[0]*0.8)
         self.setWindowTitle('Mouse pupil tracker')
         self.show()
         self.updateGUI()
@@ -168,7 +168,7 @@ class MPTrackerWindow(QWidget):
 
     # Update
     def processFrame(self,val = 0):
-        f = int(self.wFrame.value())
+        f = int(val)
         img = self.imgstack.get(f)
         img,cr_pos,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
         self.results['diamPix'][f,:2] = pupil_radius
@@ -205,13 +205,19 @@ class MPTrackerWindow(QWidget):
     def runDetectionVerbose(self):
         self.running = True
         ts = time.time()
-        for f in range(self.parameters['number_frames']):
+        if not len(self.parameters['points']) == 4:
+            print('You did not specify the region..')
+            return
+        for f in xrange(self.parameters['number_frames']):
             self.wFrame.setValue(f)
             if not self.running:
                 break
+        self.results['reference'] = [self.parameters['points'][0],self.parameters['points'][2]]
         print('Done {0} frames in {1:3.1f} min'.format(f,
                                                        (time.time()-ts)/60.))
-    
+        import cPickle as pickle
+        pickle.dump(self.results, open( "tmp_results.p", "wb" ) )
+        print("Saved to tmp_results.p")
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',

@@ -32,7 +32,7 @@ class MPTracker(object):
         self.ROIpoints = []
         self.crApprox = None
         self.R = np.linspace(0,2.1*np.pi, 20)
-        self.concatThresh=True
+        self.concatenateBinaryImage=True
     def setROI(self, points):
         self.ROIpoints = points
     def set_clhe(self):
@@ -141,11 +141,11 @@ class MPTracker(object):
             thresh = cv2.drawContours(thresh,
                                       [s1], -1, (0, 255, 255),2)
             # Absolute positions
-            pupil_pos[0] += x1 
-            pupil_pos[0] += y1
-        if self.concatThresh:
+            pupil_pos[0] += y1 
+            pupil_pos[1] += x1
+        if self.concatenateBinaryImage:
             img = np.concatenate((img,thresh),axis=0)
-        return img,maxL,pupil_pos,(short_axis,long_axis),(b,a,phi)
+        return img,(maxL[1],maxL[0]),(pupil_pos[1],pupil_pos[0]),(short_axis,long_axis),(b,a,phi)
 
     def getCenterOfMass(self,contour):
         # center of mass
