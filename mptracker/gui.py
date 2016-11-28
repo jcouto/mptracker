@@ -40,15 +40,15 @@ description = ''' GUI to define parameters and track the pupil.'''
 class MPTrackerWindow(QWidget):
     def __init__(self,targetpath = None,app = None):
         super(MPTrackerWindow,self).__init__()
-        if targetpath is None:
-            print('No target specified.')
-            sys.exit()
         self.app = app
-        tiffiles = np.sort(glob(os.environ['HOME']+
-                                '/temp/develop/pupil_tracking_mice/160927_JC021_lgnmov'+
-                                '/*.tif'))
-        dirname = tiffiles[0]
-        self.imgstack = TiffFileSequence(dirname)
+        if targetpath is None:
+            print('No target path specified... in the future this will ask the filename.')
+            tiffiles = np.sort(glob(os.environ['HOME']+
+                                    '/temp/develop/pupil_tracking_mice'+
+                                    '/160927_JC021_lgnmov'+
+                                    '/*.tif'))
+            targetpath = tiffiles[0]
+        self.imgstack = TiffFileSequence(targetpath)
         self.tracker = MPTracker()
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
@@ -227,7 +227,10 @@ def main():
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
-    w = MPTrackerWindow(args.target,app)
+    target = None
+    if os.path.isfile(args.target):
+        target = args.target
+    w = MPTrackerWindow(target,app)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

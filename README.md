@@ -3,17 +3,19 @@ mptracker
 
 A mouse pupil tracker using python and opencv.
 
-On a common laptop can process 13 min in around 4 minutes, however there is a bach mode for using MPI that can be ran on multiple computers. 
+On a common laptop can process 13 min in around 4 minutes, however there is a batch mode that using MPI to launch frames on separate nodes. OpenCV can be compiled to use the graphics card to speed up computations.
 
 ![picture](images/mptrackerExample.png)
 
 Supported file formats:
 -----------------------
    - Multipage TIFF sequence
-   - Norpix seq files
+   - Norpix seq files [not tested  yet...]
 
 Output file format:
 -------------------
+*Results are saved as a python pickle for now... load using the unpickle method. The roadmap is bellow.*
+
 The output is an HDF5 file that can be read pretty much anywhere.
 
 The file is organized as follows:
@@ -38,7 +40,7 @@ Install dependencies:
 
 Usage:
 ------
-Launch the GUI from the command line: ``mptracker-gui``
+Launch the GUI from the command line: ``mptracker-gui <filename>``
 
 **NOTE**: Do ``mptracker-gui --help`` for options.
 
