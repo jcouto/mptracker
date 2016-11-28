@@ -114,7 +114,7 @@ class MPTrackerWindow(QWidget):
         ####################
         # window geometry
 #        self.setGeometry(100, 100, img.shape[1]*0.8, img.shape[0]*0.8)
-        self.setWindowTitle('Mouse pupil tracker')
+        self.setWindowTitle('mOUSEpUPILtracker')
         self.show()
         self.updateGUI()
         self.running = False

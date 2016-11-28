@@ -12,7 +12,7 @@ setup(
     version = '0.1',
     author = 'Joao Couto',
     author_email = 'jpcouto@gmail.com',
-    description = (' Mouse pupil tracker'),
+    description = (' mOUSEpUPILtracker'),
     long_description = longdescription,
     license = 'GPL',
     packages = ['mptracker'],
