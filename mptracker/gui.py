@@ -24,7 +24,8 @@ try:
                                  QGraphicsScene,
                                  QGraphicsItem,
                                  QGraphicsLineItem,
-                                 QGroupBox)
+                                 QGroupBox,
+                                 QFileDialog)
     from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor
     from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
 except:
@@ -38,21 +39,20 @@ from .tracker import *
 description = ''' GUI to define parameters and track the pupil.'''
 
 class MPTrackerWindow(QWidget):
-    def __init__(self,targetpath = None,app = None):
+    def __init__(self,targetpath = None,resfile = None, app = None):
         super(MPTrackerWindow,self).__init__()
         self.app = app
         if targetpath is None:
-            print('No target path specified... in the future this will ask the filename.')
-            tiffiles = np.sort(glob(os.environ['HOME']+
-                                    '/temp/develop/pupil_tracking_mice'+
-                                    '/160927_JC021_lgnmov'+
-                                    '/*.tif'))
-            targetpath = tiffiles[0]
-        self.imgstack = TiffFileSequence(targetpath)
+            self.targetpath = QFileDialog(self).getOpenFileName()[0]
+            if not os.path.isfile(self.targetpath):
+                print('Selected non file.')
+                sys.exit()
+        self.imgstack = TiffFileSequence(self.targetpath)
         self.tracker = MPTracker()
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
         self.parameters['points'] = []
+        self.resultfile = resfile
         self.initUI()
         
     def initUI(self):
@@ -159,11 +159,14 @@ class MPTrackerWindow(QWidget):
         self.wGaussianFilterSize.setText(
             str(self.parameters['gaussian_filterSize']))
         self.results = {}
-        self.results['diamPix'] = np.empty((self.parameters['number_frames'],5))
-        self.results['diamPix'].fill(np.nan)
-        self.results['pupilPix'] = np.empty((self.parameters['number_frames'],2))
+        self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
+                                           dtype = np.float32)
+        self.results['ellipsePix'].fill(np.nan)
+        self.results['pupilPix'] = np.empty((self.parameters['number_frames'],2),
+                                            dtype=np.int)
         self.results['pupilPix'].fill(np.nan)
-        self.results['crPix'] = np.empty((self.parameters['number_frames'],2))
+        self.results['crPix'] = np.empty((self.parameters['number_frames'],2),
+                                         dtype = np.int)
         self.results['crPix'].fill(np.nan)
 
     # Update
@@ -171,8 +174,8 @@ class MPTrackerWindow(QWidget):
         f = int(val)
         img = self.imgstack.get(f)
         img,cr_pos,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
-        self.results['diamPix'][f,:2] = pupil_radius
-        self.results['diamPix'][f,2:] = pupil_ellipse_par
+        self.results['ellipsePix'][f,:2] = pupil_radius
+        self.results['ellipsePix'][f,2:] = pupil_ellipse_par
         self.results['pupilPix'][f,:] = pupil_pos
         self.results['crPix'][f,:] = cr_pos
         self.setImage(img)
@@ -215,9 +218,27 @@ class MPTrackerWindow(QWidget):
         self.results['reference'] = [self.parameters['points'][0],self.parameters['points'][2]]
         print('Done {0} frames in {1:3.1f} min'.format(f,
                                                        (time.time()-ts)/60.))
-        import cPickle as pickle
-        pickle.dump(self.results, open( "tmp_results.p", "wb" ) )
-        print("Saved to tmp_results.p")
+        if self.resultfile is None:
+            self.resultfile = QFileDialog().getSaveFileName()
+        if not os.path.isfile(self.resultfile):
+            fd = createResultsFile(self.resultfile,
+                                   self.parameters['number_frames'])
+            fd['ellipsePix'][:] = self.results['ellipsePix']
+            fd['positionPix'][:] = self.results['pupilPix']
+            fd['crPix'][:] = self.results['crPix']
+            diam = computePupilDiameterFromEllipse(self.results['ellipsePix'],
+                                                   computeConversionFactor(
+                                                       self.results['reference']))
+            az,el,theta = convertPixelToEyeCoords(self.results['pupilPix'],
+                                                  self.results['reference'],
+                                                  self.results['crPix'])
+            fd['diameter'][:] = diam
+            fd['azimuth'][:] = az
+            fd['elevation'][:] = el
+            fd['theta'][:] = theta
+            fd['pointsPix'][:] = np.array(self.parameters['points'])
+            fd.close()
+            print("Saved to " + self.resultfile)
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',
@@ -230,7 +251,7 @@ def main():
     target = None
     if os.path.isfile(args.target):
         target = args.target
-    w = MPTrackerWindow(target,app)
+    w = MPTrackerWindow(target,app = app)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

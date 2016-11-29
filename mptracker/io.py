@@ -14,6 +14,30 @@ import numpy as np
 from glob import glob
 from tifffile import TiffFile
 from .norpix import SeqFile
+import h5py as h5
+
+def createResultsFile(filename,nframes,MPIO = False):
+    if MPIO:
+        f = h5.File(filename, 'w', driver='mpio', comm=MPI.COMM_WORLD)
+    else:
+        f = h5.File(filename, 'w')
+    f.create_dataset('diameter',dtype = np.float32,
+                     shape=(nframes,),compression = 'gzip')
+    f.create_dataset('azimuth',dtype = np.float32,
+                     shape=(nframes,),compression = 'gzip')
+    f.create_dataset('elevation',dtype = np.float32,
+                     shape=(nframes,),compression = 'gzip')
+    f.create_dataset('theta',dtype = np.float32,
+                     shape=(nframes,),compression = 'gzip')
+    f.create_dataset('ellipsePix',dtype = np.float32,
+                     shape=(nframes,5),compression = 'gzip')
+    f.create_dataset('positionPix',dtype = np.int,
+                     shape=(nframes,2),compression = 'gzip')
+    f.create_dataset('crPix',dtype = np.int,
+                     shape=(nframes,2),compression = 'gzip')
+    f.create_dataset('pointsPix',dtype = np.int,
+                     shape=(4,2),compression = 'gzip')
+    return f
 
 class TiffFileSequence(object):
     def __init__(self,targetpath = None,extension='tif'):

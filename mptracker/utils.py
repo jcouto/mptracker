@@ -34,17 +34,44 @@ def sph2cart(az, el, r):
 #    rho = np.hypot(x, y)
 #    return theta, rho
 
-def convertPixelToEyeCoords(eyeCorners,
-                            pupilPix,
-                            diamPix,
+def computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = 'medfilt'):
+    ''' diam = computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = 'medfilt')
+        ellipsePix is a Nx2 array (short_axis,long_axis)
+        Compute the pupil diameter as the diameter of a circle with the same area as the fitted ellipse.
+            Conversion factor (mm per pixel)
+            Smoothing can be None, medfilt or sgolay.
+    '''
+    diam = np.sqrt(ellipsePix[:,0]*ellipsePix[:,1])*2
+    if not conversionFactor is None:
+        diam *= conversionFactor
+    if smoothing is None or smoothing.lower() == 'none':
+        return diam
+    elif smoothing.lower() == 'medfilt':
+        return medfilt(diam)
+    elif smoothing.lower() == 'sgolay':
+        return savgol_filter(diam, window_length = 5, polyorder = 1, mode='nearest')
+    
+def computeConversionFactor(ref,estimate = 6.0):
+    return float(estimate)/np.sqrt(np.diff([ref[0][0],ref[1][0]])**2. + np.diff([ref[0][1],ref[1][1]])**2.)
+
+
+
+def convertPixelToEyeCoords(pupilPix,
+                            eyeCorners,
                             crPix = None,
-                            eyeDiameterEstimate = 3.0):
-    scaleFactor = eyeDiameterEstimate/np.sqrt(np.diff(eyeCorners[:,1])**2
-                                               + np.diff(eyeCorners[:,0])**2)
-    # Get the diameter of a circle with the same area as the ellipse.
-    diammm = np.sqrt(diamPix[:,0]/2.*diamPix[:,1]/2.*scaleFactor)
-    [az,el,theta] = cart2sph(pupilPix[:,0],pupilPix[:,1],eyeDiameterEstimate/2)
-    return az,el,diammm
+                            eyeDiameterEstimate = 6.0):
+    reference = [eyeCorners[0][0] + np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
+                 eyeCorners[0][1] + np.diff([eyeCorners[0][1],eyeCorners[1][1]])/2.]
+    pPix = pupilPix.copy()
+    # Correct for movement of the entire eye.
+    if not crPix is None:
+        pPix[:,0] = pPix[:,0] - (crPix[:,0] - (crPix[~np.isnan(crPix[:,0]),0][0]))
+        pPix[:,1] = pPix[:,1] - (crPix[:,1] - (crPix[~np.isnan(crPix[:,1]),1][0]))
+    cFactor = computeConversionFactor(eyeCorners)
+    [az,el,theta] = cart2sph((pPix[:,0]-reference[0])*cFactor,
+                             (pPix[:,1]-reference[1])*cFactor,
+                             eyeDiameterEstimate/2.)
+    return az,el,theta
 
 def fitEllipse(points, orientation_tolerance = 1e-3):
     '''
