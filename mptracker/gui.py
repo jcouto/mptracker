@@ -25,6 +25,7 @@ try:
                                  QGraphicsItem,
                                  QGraphicsLineItem,
                                  QGroupBox,
+                                 QTableWidget,
                                  QFileDialog)
     from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor
     from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
@@ -128,10 +129,8 @@ class MPTrackerWindow(QWidget):
         paramGrid.addRow(QLabel('Number of frames:'),self.wNFrames)
 
         # parameters, buttons and options
-        self.wPoints = QTextEdit('')
-        self.wPoints.setMaximumHeight(25)
-        self.wPoints.setMaximumWidth(200)
-        paramGrid.addRow(QLabel('Points:'),self.wPoints)
+        self.wPoints = QLabel('nan,nan \n nan,nan \n nan,nan \n nan,nan\n')
+        paramGrid.addRow(QLabel('ROI points:'),self.wPoints)
 
         self.wDisplayBinaryImage = QCheckBox()
         self.wDisplayBinaryImage.setChecked(False)
@@ -161,6 +160,10 @@ class MPTrackerWindow(QWidget):
         self.updateGUI()
         self.running = False
 
+    def putPoints(self):
+        points = self.tracker.ROIpoints
+        self.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
+        
     def updateTrackerOutputBinaryImage(self,state):
         self.tracker.concatenateBinaryImage = state
         self.processFrame(self.wFrame.value())
@@ -207,6 +210,7 @@ class MPTrackerWindow(QWidget):
         self.tracker.setROI(self.parameters['points'])
         img,cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
         self.setImage(img)
+        self.putPoints()
         
     def setImage(self,image):
         self.scene.clear()
@@ -226,9 +230,9 @@ class MPTrackerWindow(QWidget):
         self.scene.update()
 
     def updateGUI(self,value=0):
-        if not self.parameters['points'] is None:
-            self.wPoints.setText(' '.join(
-                [str(p) for p in self.parameters['points']]))
+#        if not self.parameters['points'] is None:
+#            self.wPoints.setText(' '.join(
+#                [str(p) for p in self.parameters['points']]))
         self.wEyeRadius.setText(str(self.parameters['eye_radius_mm']))
         self.wNFrames.setText(str(self.parameters['number_frames']))
         self.wContrastLim.setValue(int(self.parameters['contrast_clipLimit']))
