@@ -19,12 +19,10 @@ class MPTracker(object):
             self.parameters = {
                 'contrast_clipLimit':10,
                 'contrast_gridSize':5,
-                'region':None,
-                'equalize_histogram':True,
+                'gaussian_filterSize':7,
+                'threshold':40,
                 'eye_radius_mm':3.0,
                 'number_frames':0,
-                'gaussian_filterSize':7,
-                'threshold':40
             }
         else:
             self.parameters = parameters
@@ -32,7 +30,7 @@ class MPTracker(object):
         self.ROIpoints = []
         self.crApprox = None
         self.R = np.linspace(0,2.1*np.pi, 20)
-        self.concatenateBinaryImage=True
+        self.concatenateBinaryImage=False
     def setROI(self, points):
         self.ROIpoints = points
     def set_clhe(self):
@@ -85,11 +83,11 @@ class MPTracker(object):
         # Shape analysis
         area = np.array([cv2.contourArea(c) for c in contours],
                         dtype = np.float32)
-        rect = np.array([cv2.boundingRect(c)[2:] for c in contours],
-                        dtype = np.float32)
-        radius = np.max(rect,axis = 1)/2.
+        #rect = np.array([cv2.boundingRect(c)[2:] for c in contours],
+        #                dtype = np.float32)
         minArea = 200
         maxArea = 10000
+        #radius = np.max(rect,axis = 1)/2.
         circleIdx = np.where((area > minArea) & (area < maxArea))[0]
         #(np.abs(1 - rect[:,0]/rect[:,1]) <= 0.5) & 
         #(np.abs(1 - area/(np.pi * (radius**2))) <= 0.8)

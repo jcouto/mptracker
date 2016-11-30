@@ -47,54 +47,97 @@ class MPTrackerWindow(QWidget):
             if not os.path.isfile(self.targetpath):
                 print('Selected non file.')
                 sys.exit()
+        else:
+            self.targetpath = os.path.abspath(targetpath)    
         self.imgstack = TiffFileSequence(self.targetpath)
         self.tracker = MPTracker()
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
         self.parameters['points'] = []
         self.resultfile = resfile
+        self.results = {}
+        self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
+                                           dtype = np.float32)
+        self.results['ellipsePix'].fill(np.nan)
+        self.results['pupilPix'] = np.empty((self.parameters['number_frames'],2),
+                                            dtype=np.int)
+        self.results['pupilPix'].fill(np.nan)
+        self.results['crPix'] = np.empty((self.parameters['number_frames'],2),
+                                         dtype = np.int)
+        self.results['crPix'].fill(np.nan)
+
         self.initUI()
         
     def initUI(self):
         grid = QGridLayout()
         paramGrid = QFormLayout()
         paramGroup = QGroupBox()
+        
+        
         paramGroup.setTitle("Eye tracking parameters")
         
         paramGroup.setLayout(paramGrid)
         self.setLayout(grid)
-        # parameters, buttons and options
-        self.wRegion = QTextEdit('')
-        self.wRegion.setMaximumHeight(25)
-        self.wRegion.setMaximumWidth(200)
-        paramGrid.addRow(QLabel('Region:'),self.wRegion)
+        
 
-        self.wGaussianFilterSize = QTextEdit()
-        self.wGaussianFilterSize.setMaximumHeight(25)
-        self.wGaussianFilterSize.setMaximumWidth(40)
-        paramGrid.addRow(QLabel('Gaussian filter:'),self.wGaussianFilterSize)
+        self.wContrastLim = QSlider(Qt.Horizontal)
+        self.wContrastLim.setValue(15)
+        self.wContrastLim.setMinimum(0)
+        self.wContrastLim.setMaximum(200)
+        self.wContrastLimLabel = QLabel('Contrast limit [{0}]:'.format(
+            self.wContrastLim.value()))
+        self.wContrastLim.valueChanged.connect(self.setContrastLim)
+        paramGrid.addRow(self.wContrastLimLabel,self.wContrastLim)
 
-        self.wContrastGridSize = QTextEdit()
-        self.wContrastGridSize.setMaximumHeight(25)
-        self.wContrastGridSize.setMaximumWidth(40)
-        paramGrid.addRow(QLabel('Contrast grid size:'),self.wContrastGridSize)
+        self.wContrastGridSize = QSlider(Qt.Horizontal)
+        self.wContrastGridSize.setValue(5)
+        self.wContrastGridSize.setMaximum(100)
+        self.wContrastGridSize.setMinimum(3)
+        self.wContrastGridSizeLabel = QLabel('Contrast grid size [{0}]:'.format(
+            self.wContrastGridSize.value()))
+        self.wContrastGridSize.valueChanged.connect(self.setContrastGridSize)
+        paramGrid.addRow(self.wContrastGridSizeLabel,self.wContrastGridSize)
 
-        self.wContrastLim = QTextEdit('')
-        self.wContrastLim.setMaximumHeight(25)
-        self.wContrastLim.setMaximumWidth(40)
-        paramGrid.addRow(QLabel('Contrast limit:'),self.wContrastLim)
+        self.wGaussianFilterSize = QSlider(Qt.Horizontal)
+        self.wGaussianFilterSize.setValue(7)
+        self.wGaussianFilterSize.setMaximum(31)
+        self.wGaussianFilterSize.setMinimum(1)
+        self.wGaussianFilterSize.setSingleStep(2)
+        self.wGaussianFilterSizeLabel = QLabel('Gaussian filter [{0}]:'.format(
+            self.wGaussianFilterSize.value()))
+        self.wGaussianFilterSize.valueChanged.connect(self.setGaussianFilterSize)
+        paramGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
 
+        self.wBinThreshold = QSlider(Qt.Horizontal)
+        self.wBinThreshold.setValue(40)
+        self.wBinThresholdLabel = QLabel('Binary contrast [40]:')
+        self.wBinThreshold.setMinimum(0)
+        self.wBinThreshold.setMaximum(255)
+        self.wBinThreshold.valueChanged.connect(self.setBinThreshold)
+        paramGrid.addRow(self.wBinThresholdLabel,self.wBinThreshold)
+        
         self.wEyeRadius = QTextEdit('')
         self.wEyeRadius.setMaximumHeight(25)
         self.wEyeRadius.setMaximumWidth(40)
+        self.wEyeRadius.textChanged.connect(self.setEyeRadius)
         paramGrid.addRow(QLabel('Approximate eye radius (mm):'),self.wEyeRadius)
-
+        
         self.wNFrames = QLabel('')
         self.wNFrames.setMaximumHeight(25)
         self.wNFrames.setMaximumWidth(200)
-
         paramGrid.addRow(QLabel('Number of frames:'),self.wNFrames)
 
+        # parameters, buttons and options
+        self.wPoints = QTextEdit('')
+        self.wPoints.setMaximumHeight(25)
+        self.wPoints.setMaximumWidth(200)
+        paramGrid.addRow(QLabel('Points:'),self.wPoints)
+
+        self.wDisplayBinaryImage = QCheckBox()
+        self.wDisplayBinaryImage.setChecked(False)
+        self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
+        paramGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
+        
         grid.addWidget(paramGroup,0,0,3,1)
         
         self.wFrame = QSlider(Qt.Horizontal)
@@ -119,6 +162,42 @@ class MPTrackerWindow(QWidget):
         self.updateGUI()
         self.running = False
 
+    def updateTrackerOutputBinaryImage(self,state):
+        self.tracker.concatenateBinaryImage = state
+        self.processFrame(self.wFrame.value())
+
+    def setBinThreshold(self,value):
+        self.parameters['threshold'] = int(value)
+        self.wBinThresholdLabel.setText('Binary contrast [{0}]:'.format(int(value)))
+        self.processFrame(self.wFrame.value())
+
+    def setContrastLim(self,value):
+        self.parameters['contrast_clipLimit'] = int(value)
+        self.wContrastLimLabel.setText('Contrast limit [{0}]:'.format(int(value)))
+        self.tracker.set_clhe()
+        self.processFrame(self.wFrame.value())
+
+    def setContrastGridSize(self,value):
+        self.parameters['contrast_gridSize'] = int(value)
+        self.wContrastGridSizeLabel.setText('Contrast grid size [{0}]:'.format(int(value)))
+        self.tracker.set_clhe()
+        self.processFrame(self.wFrame.value())
+
+    def setGaussianFilterSize(self,value):
+        if not np.mod(value,2) == 1:
+            value += 1
+        
+        self.parameters['gaussian_filterSize'] = int(value)
+        self.wGaussianFilterSizeLabel.setText('Gaussian filter size [{0}]:'.format(int(value)))
+        self.processFrame(self.wFrame.value())
+        
+    def setEyeRadius(self):
+        value = self.wEyeRadius.toPlainText()
+        try:
+            self.parameters['eye_radius_mm'] = float(value)
+            print(self.tracker.parameters['eye_radius_mm'])
+        except:
+            print('Need to insert a float in the radius.')
     def selectPoints(self,event):
         pt = self.view.mapToScene(event.pos())
         x = pt.x()
@@ -147,27 +226,17 @@ class MPTrackerWindow(QWidget):
                             Qt.KeepAspectRatio)
         self.scene.update()
 
-    def updateGUI(self):
-        if not self.parameters['region'] is None:
-            self.wRegion.setText(' '.join(
-                [str(p) for p in self.parameters['region']]))
+    def updateGUI(self,value=0):
+        if not self.parameters['points'] is None:
+            self.wPoints.setText(' '.join(
+                [str(p) for p in self.parameters['points']]))
         self.wEyeRadius.setText(str(self.parameters['eye_radius_mm']))
         self.wNFrames.setText(str(self.parameters['number_frames']))
-        self.wContrastLim.setText(str(self.parameters['contrast_clipLimit']))
-        self.wContrastGridSize.setText(
-            str(self.parameters['contrast_gridSize']))
-        self.wGaussianFilterSize.setText(
-            str(self.parameters['gaussian_filterSize']))
-        self.results = {}
-        self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
-                                           dtype = np.float32)
-        self.results['ellipsePix'].fill(np.nan)
-        self.results['pupilPix'] = np.empty((self.parameters['number_frames'],2),
-                                            dtype=np.int)
-        self.results['pupilPix'].fill(np.nan)
-        self.results['crPix'] = np.empty((self.parameters['number_frames'],2),
-                                         dtype = np.int)
-        self.results['crPix'].fill(np.nan)
+        self.wContrastLim.setValue(int(self.parameters['contrast_clipLimit']))
+        self.wContrastGridSize.setValue(
+            int(self.parameters['contrast_gridSize']))
+        self.wGaussianFilterSize.setValue(
+            int(self.parameters['gaussian_filterSize']))
 
     # Update
     def processFrame(self,val = 0):
@@ -219,7 +288,7 @@ class MPTrackerWindow(QWidget):
         print('Done {0} frames in {1:3.1f} min'.format(f,
                                                        (time.time()-ts)/60.))
         if self.resultfile is None:
-            self.resultfile = QFileDialog().getSaveFileName()
+            self.resultfile = QFileDialog().getSaveFileName()[0]
         if not os.path.isfile(self.resultfile):
             fd = createResultsFile(self.resultfile,
                                    self.parameters['number_frames'])
