@@ -145,7 +145,7 @@ class MPTrackerWindow(QWidget):
         self.wFrame.setMaximum(self.imgstack.nFrames-1)
         self.wFrame.setMinimum(0)
         self.wFrame.setValue(0)
-        grid.addWidget(self.wFrame,0,2,1,3)
+        grid.addWidget(self.wFrame,0,2,1,4)
         # images and plots
         img = self.imgstack.get(int(self.wFrame.value()))
         img,cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
@@ -156,7 +156,6 @@ class MPTrackerWindow(QWidget):
         grid.addWidget(self.view,1,2,6,5)
         ####################
         # window geometry
-#        self.setGeometry(100, 100, img.shape[1]*0.8, img.shape[0]*0.8)
         self.setWindowTitle('mOUSEpUPILtracker')
         self.show()
         self.updateGUI()
