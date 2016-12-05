@@ -14,7 +14,6 @@ Supported file formats:
 
 Output file format:
 -------------------
-*Results are saved as a python pickle for now... load using the unpickle method. The roadmap is bellow.*
 
 The output is an HDF5 file that can be read pretty much anywhere.
 

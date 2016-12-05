@@ -131,7 +131,7 @@ class MPTrackerWindow(QWidget):
         # parameters, buttons and options
         self.wPoints = QLabel('nan,nan \n nan,nan \n nan,nan \n nan,nan\n')
         paramGrid.addRow(QLabel('ROI points:'),self.wPoints)
-
+        self.wPoints.mouseDoubleClickEvent = self.clearPoints
         self.wDisplayBinaryImage = QCheckBox()
         self.wDisplayBinaryImage.setChecked(False)
         self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
@@ -160,6 +160,10 @@ class MPTrackerWindow(QWidget):
         self.updateGUI()
         self.running = False
 
+    def clearPoints(self,event):
+        self.tracker.ROIpoints = []
+        self.putPoints()
+        
     def putPoints(self):
         points = self.tracker.ROIpoints
         self.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
@@ -260,8 +264,8 @@ class MPTrackerWindow(QWidget):
             plt.ion()
             fig = plt.figure()
             fig.add_subplot(3,1,1)
-            plt.plot(self.results['diamPix'][:,1],'k')
-            plt.plot(medfilt(self.results['diamPix'][:,1]),'b')
+            plt.plot(self.results['ellipsePix'][:,1],'k')
+            plt.plot(medfilt(self.results['ellipsePix'][:,1]),'b')
             fig.add_subplot(3,1,2)
             plt.plot(self.results['pupilPix'][:,0])
             plt.plot(self.results['pupilPix'][:,1])
@@ -291,7 +295,14 @@ class MPTrackerWindow(QWidget):
         print('Done {0} frames in {1:3.1f} min'.format(f,
                                                        (time.time()-ts)/60.))
         if self.resultfile is None:
-            self.resultfile = QFileDialog().getSaveFileName()[0]
+            try:
+                self.resultfile = QFileDialog().getSaveFileName()[0]
+            except:
+                self.resultfile = ''
+        fname,ext = os.path.splitext(self.resultfile)
+        if not len(ext):
+            print('File path not valid.')
+            return
         if not os.path.isfile(self.resultfile):
             fd = createResultsFile(self.resultfile,
                                    self.parameters['number_frames'])
@@ -311,6 +322,8 @@ class MPTrackerWindow(QWidget):
             fd['pointsPix'][:] = np.array(self.parameters['points'])
             fd.close()
             print("Saved to " + self.resultfile)
+        else:
+            print("File already exists.")
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',
