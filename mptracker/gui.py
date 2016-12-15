@@ -59,7 +59,9 @@ from .tracker import *
 description = ''' GUI to define parameters and track the pupil.'''
 
 class MPTrackerWindow(QWidget):
-    def __init__(self,targetpath = None,resfile = None, app = None, usetmp = False):
+    def __init__(self,targetpath = None,
+                 resfile = None, 
+                 app = None, usetmp = False):
         super(MPTrackerWindow,self).__init__()
         self.app = app
         if targetpath is None:
@@ -361,7 +363,11 @@ def main():
     parser.add_argument('target',
                         metavar = 'target',
                         type = str,
-                        help = 'Target experiment to process (path).')
+                        help = 'Experiment data path.')
+    parser.add_argument('-o','--output',
+                        type = str,
+                        default=None,
+                        help = 'Output data path.')
     parser.add_argument('--usetmp',
                         default = False,
                         action = 'store_true',
@@ -372,7 +378,9 @@ def main():
     target = None
     if os.path.isfile(args.target):
         target = args.target
-    w = MPTrackerWindow(target,app = app,usetmp=args.usetmp)
+    w = MPTrackerWindow(target,app = app,
+                        resfile = args.output,
+                        usetmp=args.usetmp)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
