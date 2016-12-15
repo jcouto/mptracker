@@ -59,7 +59,7 @@ from .tracker import *
 description = ''' GUI to define parameters and track the pupil.'''
 
 class MPTrackerWindow(QWidget):
-    def __init__(self,targetpath = None,resfile = None, app = None, usetmp = True):
+    def __init__(self,targetpath = None,resfile = None, app = None, usetmp = False):
         super(MPTrackerWindow,self).__init__()
         self.app = app
         if targetpath is None:

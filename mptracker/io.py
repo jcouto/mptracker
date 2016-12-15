@@ -17,7 +17,7 @@ from pims import NorpixSeq
 import h5py as h5
 from tempfile import mkdtemp
 from shutil import copyfile
-
+import cv2 # For reading 16bit tif
 def createResultsFile(filename,nframes,MPIO = False):
     if MPIO:
         f = h5.File(filename, 'w', driver='mpio', comm=MPI.COMM_WORLD)
@@ -70,10 +70,10 @@ def copyFilesToTmp(targetpath):
     return pjoin(tempdir,os.path.basename(filenames[0]))
 
 class TiffFileSequence(object):
-    def __init__(self,targetpath = None,extension='tif'):
+    def __init__(self,targetpath = None):
         '''Lets you access a sequence of TIFF files without noticing...'''
         self.path = os.path.dirname(targetpath)
-        self.basename = os.path.splitext(os.path.basename(targetpath))[0]
+        self.basename,extension = os.path.splitext(os.path.basename(targetpath))
         for f in range(len(self.basename)):
             if not self.basename[-f].isdigit():
                 break
@@ -83,13 +83,13 @@ class TiffFileSequence(object):
             f = -1
         self.basename = self.basename[:f]
         filtered_filenames = []
-        filenames = np.sort(glob(pjoin(self.path,'*.' + extension)))
+        filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
         self.filenames = []
         for f in filenames:
             if self.basename in f:
                 self.filenames.append(f)
         if not len(self.filenames):
-            print('Wrong target path: ' + self.path + '*.' + extension)
+            print('Wrong target path: ' + pjoin(self.path,'*' + extension))
             raise
         self.files = [TiffFile(f) for f in self.filenames]
         framesPerFile = []
@@ -126,7 +126,10 @@ class TiffFileSequence(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
-        return self.files[fileidx].asarray(frameidx)
+        img = self.files[fileidx].asarray(frameidx)
+        if img.dtype == np.uint16:
+            img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0))
+        return img
 
     def close(self):
         for fd in self.files:
