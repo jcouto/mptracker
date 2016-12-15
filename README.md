@@ -3,14 +3,16 @@ mOUSEpUPILtracker
 
 A mouse pupil tracker using Python and OpenCV.
 
-On a common laptop can process 13 min in around 4 minutes, however there is a batch mode that uses MPI to launch frames on separate nodes/computers. OpenCV can be compiled to use the graphics card to speed up computations.
+This can process 13 min of recording in around 4 minutes (on a common laptop), however there is a batch mode that uses MPI to launch frames on separate nodes/computers. OpenCV can be compiled to use the graphics card to speed up computations.
+
+Note: Does not handle large pupil with reflection very well for now (like running in the dark).
 
 ![picture](images/mptrackerExample.png)
 
 Supported file formats:
 -----------------------
    - Multipage TIFF sequence
-   - Norpix seq files [not tested  yet...]
+   - Norpix seq files
 
 Output file format:
 -------------------
@@ -35,6 +37,7 @@ Install dependencies:
 - PyQt5
 - opencv 3.0 (cv2)
 - h5py
+- PIMS (for reading norpix seq files)
 - mpi4py (Not needed if ran on a single computer)
 
 Usage:
