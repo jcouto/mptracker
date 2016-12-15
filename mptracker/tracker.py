@@ -34,10 +34,18 @@ class MPTracker(object):
     def setROI(self, points):
         self.ROIpoints = points
     def set_clhe(self):
-        self.clahe = cv2.createCLAHE(
-            clipLimit=self.parameters['contrast_clipLimit'],
-            tileGridSize=(self.parameters['contrast_gridSize'],
-                          self.parameters['contrast_gridSize']))
+        if (self.parameters['contrast_gridSize']>3):
+            self.clahe = cv2.createCLAHE(
+                clipLimit=self.parameters['contrast_clipLimit'],
+                tileGridSize=(self.parameters['contrast_gridSize'],
+                              self.parameters['contrast_gridSize']))
+        else:
+            class dummy(object):
+                def __init__(self):
+                    pass
+                def apply(self,img):
+                    return img
+            self.clahe = dummy()
 
     def apply(self,img):
         #return self.applyStarburst(img)

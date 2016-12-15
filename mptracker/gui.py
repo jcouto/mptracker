@@ -9,6 +9,7 @@ import argparse
 from glob import glob
 from time import sleep
 import cv2
+
 #import matplotlib.pyplot as plt
 # Qt imports
 try:
@@ -58,7 +59,7 @@ from .tracker import *
 description = ''' GUI to define parameters and track the pupil.'''
 
 class MPTrackerWindow(QWidget):
-    def __init__(self,targetpath = None,resfile = None, app = None):
+    def __init__(self,targetpath = None,resfile = None, app = None, usetmp = True):
         super(MPTrackerWindow,self).__init__()
         self.app = app
         if targetpath is None:
@@ -67,8 +68,19 @@ class MPTrackerWindow(QWidget):
                 print('Selected non file:'+str(self.targetpath))
                 sys.exit()
         else:
-            self.targetpath = os.path.abspath(targetpath)    
-        self.imgstack = TiffFileSequence(self.targetpath)
+            self.targetpath = os.path.abspath(targetpath)
+        if usetmp:
+            self.tmptarget = copyFilesToTmp(self.targetpath)
+            print('WARNING: At exit is not implemented yet to delete this folder. User is responsible for that.')
+            target = self.tmptarget
+        else:
+            target = self.targetpath
+        if os.path.splitext(target)[1] in ['.tif','.tiff']:
+            self.imgstack = TiffFileSequence(target)
+        elif os.path.splitext(self.targetpath)[1] in ['.seq']:
+            self.imgstack = NorpixFile(target)
+        else:
+            print('Unknown extension for:'+target)
         self.tracker = MPTracker()
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
@@ -110,8 +122,8 @@ class MPTrackerWindow(QWidget):
 
         self.wContrastGridSize = QSlider(Qt.Horizontal)
         self.wContrastGridSize.setValue(5)
-        self.wContrastGridSize.setMaximum(100)
-        self.wContrastGridSize.setMinimum(3)
+        self.wContrastGridSize.setMaximum(200)
+        self.wContrastGridSize.setMinimum(1)
         self.wContrastGridSizeLabel = QLabel('Contrast grid size [{0}]:'.format(
             self.wContrastGridSize.value()))
         self.wContrastGridSize.valueChanged.connect(self.setContrastGridSize)
@@ -119,7 +131,7 @@ class MPTrackerWindow(QWidget):
 
         self.wGaussianFilterSize = QSlider(Qt.Horizontal)
         self.wGaussianFilterSize.setValue(7)
-        self.wGaussianFilterSize.setMaximum(31)
+        self.wGaussianFilterSize.setMaximum(61)
         self.wGaussianFilterSize.setMinimum(1)
         self.wGaussianFilterSize.setSingleStep(2)
         self.wGaussianFilterSizeLabel = QLabel('Gaussian filter [{0}]:'.format(
@@ -348,13 +360,17 @@ def main():
                         metavar = 'target',
                         type = str,
                         help = 'Target experiment to process (path).')
+    parser.add_argument('--usetmp',
+                        default = False,
+                        action = 'store_true',
+                        help = 'Copy data to a temporary folder.')
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
     target = None
     if os.path.isfile(args.target):
         target = args.target
-    w = MPTrackerWindow(target,app = app)
+    w = MPTrackerWindow(target,app = app,usetmp=args.usetmp)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

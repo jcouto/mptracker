@@ -15,6 +15,8 @@ from glob import glob
 from tifffile import TiffFile
 from .norpix import SeqFile
 import h5py as h5
+from tempfile import mkdtemp
+from shutil import copyfile
 
 def createResultsFile(filename,nframes,MPIO = False):
     if MPIO:
@@ -38,6 +40,34 @@ def createResultsFile(filename,nframes,MPIO = False):
     f.create_dataset('pointsPix',dtype = np.int,
                      shape=(4,2),compression = 'gzip')
     return f
+
+
+def copyFilesToTmp(targetpath):
+    path = os.path.dirname(targetpath)
+    basename, extension = os.path.splitext(os.path.basename(targetpath))
+    for f in range(len(basename)):
+        if not basename[-f].isdigit():
+            break
+    if not -f+1 == 0:
+        f = -f+1
+    else:
+        f = -1
+    basename = basename[:f]
+    fnames = np.sort(glob(pjoin(path,'*' + extension)))
+    filenames = []
+    for f in fnames:
+        if basename in f:
+            filenames.append(f)
+    if not len(filenames):
+        print('Wrong target path: ' + path + '*' + extension)
+        raise
+    tempdir = mkdtemp(basename)
+    print('Using temporary folder: ' + tempdir)
+    for f in filenames:
+        target_f = os.path.basename(f)
+        copyfile(f,pjoin(tempdir,target_f))
+        print('Copied '+target_f)
+    return pjoin(tempdir,os.path.basename(filenames[0]))
 
 class TiffFileSequence(object):
     def __init__(self,targetpath = None,extension='tif'):
@@ -106,7 +136,7 @@ class NorpixFile(object):
     def __init__(self,targetpath = None,extension='tif'):
         '''Wrapper to norpix seq files'''
         self.path = os.path.dirname(targetpath)
-        self.filenames = [self.targetpath]
+        self.filenames = [targetpath]
         self.files = [SeqFile(f) for f in self.filenames]
         framesPerFile = []
         for f in self.files:
@@ -130,7 +160,7 @@ class NorpixFile(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
-        return self.files[fileidx][frameidx]
+        return self.files[fileidx][frameidx][0]
 
     def close(self):
         for fd in self.files:
