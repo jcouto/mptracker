@@ -326,12 +326,14 @@ class MPTrackerWindow(QWidget):
                                                        (time.time()-ts)/60.))
         if self.resultfile is None:
             try:
-                self.resultfile = QFileDialog().getSaveFileName()[0]
+                self.resultfile = QFileDialog().getSaveFileName()
             except:
                 self.resultfile = ''
+        self.resultfile = str(self.resultfile)
+        print self.resultfile
         fname,ext = os.path.splitext(self.resultfile)
-        if not len(ext):
-            print('File path not valid.')
+        if len(ext)==0:
+            print('File has no extension:'+self.resultfile)
             return
         if not os.path.isfile(self.resultfile):
             fd = createResultsFile(self.resultfile,
