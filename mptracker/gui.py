@@ -30,7 +30,25 @@ try:
     from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor
     from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
 except:
-    print('PyQt5 not installed??')
+    from PyQt4.QtGui import (QWidget,
+                             QApplication,
+                             QGridLayout,
+                             QFormLayout,
+                             QCheckBox,
+                             QTextEdit,
+                             QSlider,
+                             QLabel,
+                             QGraphicsView,
+                             QGraphicsScene,
+                             QGraphicsItem,
+                             QGraphicsLineItem,
+                             QGroupBox,
+                             QTableWidget,
+                             QFileDialog,
+                             QImage,
+                             QPixmap)
+    from PyQt4.QtCore import Qt,QSize,QRectF,QLineF,QPointF
+   
 import pylab as plt
 # Local imports
 from .utils import *
@@ -46,7 +64,7 @@ class MPTrackerWindow(QWidget):
         if targetpath is None:
             self.targetpath = QFileDialog(self).getOpenFileName()[0]
             if not os.path.isfile(self.targetpath):
-                print('Selected non file.')
+                print('Selected non file:'+str(self.targetpath))
                 sys.exit()
         else:
             self.targetpath = os.path.abspath(targetpath)    
