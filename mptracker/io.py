@@ -13,7 +13,7 @@ from os.path import join as pjoin
 import numpy as np
 from glob import glob
 from tifffile import TiffFile
-from .norpix import SeqFile
+from pims import NorpixSeq
 import h5py as h5
 from tempfile import mkdtemp
 from shutil import copyfile
@@ -137,7 +137,7 @@ class NorpixFile(object):
         '''Wrapper to norpix seq files'''
         self.path = os.path.dirname(targetpath)
         self.filenames = [targetpath]
-        self.files = [SeqFile(f) for f in self.filenames]
+        self.files = [NorpixSeq(f) for f in self.filenames]
         framesPerFile = []
         for f in self.files:
             N = len(f)
@@ -160,7 +160,7 @@ class NorpixFile(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
-        return self.files[fileidx][frameidx][0]
+        return self.files[fileidx].get_frame(frameidx)
 
     def close(self):
         for fd in self.files:
