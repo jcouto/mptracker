@@ -21,7 +21,7 @@ class MPTracker(object):
                 'contrast_gridSize':5,
                 'gaussian_filterSize':7,
                 'threshold':40,
-                'eye_radius_mm':3.0,
+                'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
                 'number_frames':0,
             }
         else:

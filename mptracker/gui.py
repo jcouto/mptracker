@@ -9,7 +9,6 @@ import argparse
 from glob import glob
 from time import sleep
 import cv2
-
 #import matplotlib.pyplot as plt
 # Qt imports
 try:
@@ -51,6 +50,8 @@ except:
     from PyQt4.QtCore import Qt,QSize,QRectF,QLineF,QPointF
    
 import pylab as plt
+plt.matplotlib.style.use('ggplot')
+
 # Local imports
 from .utils import *
 from .io import *
@@ -293,17 +294,65 @@ class MPTrackerWindow(QWidget):
         if e.key() == Qt.Key_Escape:
             self.close()
         elif e.key() == 80:
-            plt.ion()
-            fig = plt.figure()
-            fig.add_subplot(3,1,1)
-            plt.plot(self.results['ellipsePix'][:,1],'k')
-            plt.plot(medfilt(self.results['ellipsePix'][:,1]),'b')
-            fig.add_subplot(3,1,2)
-            plt.plot(self.results['pupilPix'][:,0])
-            plt.plot(self.results['pupilPix'][:,1])
-            fig.add_subplot(3,1,3)
-            plt.plot(self.results['crPix'][:,0])
-            plt.plot(self.results['crPix'][:,1])
+            results = self.results.copy()
+            clahe = cv2.createCLAHE(7,(10,10))
+            ii = 1000
+            img = clahe.apply(self.imgstack.get(ii))
+            fig = plt.figure(figsize = [10,3])
+            ax = fig.add_axes([0.025,0.05,0.25,0.95],aspect='equal')
+            ax.imshow(img,cmap='gray',aspect='equal')
+            eyeCorners  = results['reference']
+            reference = [eyeCorners[0][0] + np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
+                         eyeCorners[0][1] + np.diff([eyeCorners[0][1],eyeCorners[1][1]])/2.]
+            ax.plot(reference[0],reference[1],'g+',alpha=0.8,markersize=10,lw=1)
+            ax.plot([results['reference'][0][0],results['reference'][1][0]],
+                    [results['reference'][0][1],results['reference'][1][1]],'-|y',
+                    alpha=0.8,markersize=25,lw=1)
+            ax.plot(results['pupilPix'][ii,0],results['pupilPix'][ii,1],'r.',alpha=0.8)
+            s1 = ellipseToContour(results['pupilPix'][ii,:],results['ellipsePix'][ii,2],
+                                  results['ellipsePix'][ii,3],
+                                  results['ellipsePix'][ii,4],np.linspace(0,2*np.pi,200))
+
+            ax.plot(np.hstack([s1[:,0,1],s1[0,0,1]]),
+                    np.hstack([s1[:,0,0],s1[0,0,0]]),'-',color='orange',alpha=0.8)
+            ax.grid('off')
+            ax.axis('off');ax.axis('tight');
+
+            axel = fig.add_axes([0.36,0.16,0.6,0.2])
+            axdiam = fig.add_axes([0.36,0.76,0.6,0.2]) #,sharex=axel
+            axaz = fig.add_axes([0.36,0.46,0.6,0.2])
+
+
+            diam = computePupilDiameterFromEllipse(results['ellipsePix'],
+                                                   computeConversionFactor(results['reference']))
+            az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
+                                                  results['reference'],results['crPix'])
+
+            axdiam.plot(medfilt(diam));axdiam.set_xticklabels([])
+            axaz.plot(medfilt(az));axaz.set_xticklabels([]);
+
+            axaz.set_ylabel('Azimuth \n [deg]',color='black')
+            axel.plot(medfilt(el));axel.set_ylabel('Elevation \n [deg]',color='black')
+
+            axdiam.set_ylabel('Diameter \n [mm]',color='black')
+            
+            def cleanAx(ax1):
+                ax1.locator_params(axis='y',nbins=3)
+                ax1.spines['right'].set_visible(False)
+                ax1.spines['top'].set_visible(False)
+                # Only show ticks on the left and bottom spines
+                ax1.yaxis.set_ticks_position('left')
+                ax1.xaxis.set_ticks_position('bottom')
+                ax1.spines['bottom'].set_color('black')
+                ax1.spines['left'].set_color('black')
+                ax1.tick_params(axis='both', colors='black')
+            for a in [axdiam,axaz,axel]:
+                cleanAx(a)
+            a.axis('tight')
+            axel.set_ylim([1,2])
+            axdiam.set_ylim([0,2.])
+            axaz.set_ylim([0,3.7])
+            axel.set_xlabel('Frame number',color='black')
             plt.show()
         elif e.key() == 82:
             if not self.running:
