@@ -4,6 +4,7 @@
 import numpy as np
 import cv2
 from .utils import *
+import os
 
 def ellipseToContour(pupil_pos,a,b,phi,R=np.linspace(0,2.1*np.pi, 20)):
     xx = pupil_pos[1] + a*np.cos(R)*np.cos(phi) - b*np.sin(R)*np.sin(phi)
@@ -72,7 +73,7 @@ class MPTracker(object):
                                             np.array([-20,20])+maxL[1]])
         d2,d1 = img.shape
         ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
-        if not self.crApprox is None:
+        if not os.name == 'nt' and not self.crApprox is None:
             minV,maxV,minL,maxL = cv2.minMaxLoc(img[
                 self.crApprox[1,0]:self.crApprox[1,1],
                 self.crApprox[0,0]:self.crApprox[0,1]])

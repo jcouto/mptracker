@@ -18,6 +18,7 @@ import h5py as h5
 from tempfile import mkdtemp
 from shutil import copyfile
 import cv2 # For reading 16bit tif
+
 def createResultsFile(filename,nframes,MPIO = False):
     if MPIO:
         f = h5.File(filename, 'w', driver='mpio', comm=MPI.COMM_WORLD)
@@ -95,7 +96,7 @@ class TiffFileSequence(object):
         framesPerFile = []
         for f in self.files:
             N,h,w = f.series[0].shape
-            framesPerFile.append(N)
+            framesPerFile.append(np.int64(N))
             if 'h' in dir(self):
                 if not self.h == h:
                     print('Wrong height value on one of the files.')
@@ -103,9 +104,9 @@ class TiffFileSequence(object):
             else:
                 self.h = h
                 self.w = w
-        self.framesPerFile = np.array(framesPerFile)
+        self.framesPerFile = np.array(framesPerFile, dtype=np.int64)
         self.framesOffset = np.hstack([0,np.cumsum(self.framesPerFile[:-1])])
-        self.nFrames = sum(framesPerFile)
+        self.nFrames = np.sum(framesPerFile)
 
     def getFrameIndex(self,frame):
         '''Computes the frame index from multipage tiff files.'''
@@ -144,12 +145,12 @@ class NorpixFile(object):
         framesPerFile = []
         for f in self.files:
             N = len(f)
-            framesPerFile.append(N)
+            framesPerFile.append(np.int64(N))
             if not 'h' in dir(self):
                 h,w = (f.height, f.width)
                 self.h = h
                 self.w = w
-        self.framesPerFile = np.array(framesPerFile)
+        self.framesPerFile = np.array(framesPerFile, dtype=np.int64)
         self.framesOffset = np.hstack([0,np.cumsum(self.framesPerFile[:-1])])
         self.nFrames = sum(framesPerFile)
 
