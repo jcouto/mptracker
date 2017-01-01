@@ -66,14 +66,14 @@ class MPTracker(object):
              x2 = x1 + w
              y2 = y1 + h
              img = img[y1:y2,x1:x2]
-             if self.crApprox is None:
+             if not os.name == 'nt' and self.crApprox is None:
                  S,(mag,imgx,imgy) = radial_transform(img.astype(np.float32))
                  minV,maxV,minL,maxL = cv2.minMaxLoc(S)
                  self.crApprox = np.vstack([np.array([-20,20])+maxL[0] ,
                                             np.array([-20,20])+maxL[1]])
         d2,d1 = img.shape
         ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
-        if not os.name == 'nt' and not self.crApprox is None:
+        if not self.crApprox is None:
             minV,maxV,minL,maxL = cv2.minMaxLoc(img[
                 self.crApprox[1,0]:self.crApprox[1,1],
                 self.crApprox[0,0]:self.crApprox[0,1]])
