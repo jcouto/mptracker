@@ -48,14 +48,14 @@ Launch the GUI from the command line: ``mptracker-gui <filename>``
 
 **NOTE**: Do ``mptracker-gui --help`` for options.
 
-Command line options:
-+++++++++++++++++++++
+### Command line options:
+
 
 - *-o* <output file path> File where to save the results to (will ask if not specified).
 - *--usetmp* use a temporary folder ("/tmp") in linux
 
-Instructions:
-+++++++++++++
+### Instructions:
+
 
 1.   Select left corner; top; right corner and bottom of the eye by clicking on the window.
 2.   Adjust the parameters for best pupil contrast.
