@@ -163,6 +163,19 @@ def medfilt(x, k = 5):
         y[-j:,-(i+1)] = x[-1]
     return np.nanmedian(y, axis=1)
 
+
+def sobel3x3(img,ksize = 5):
+    """
+    Compute vertical and horizontal gradients as well as the magnitude of image
+    using openCV.
+    Joao Couto - January 2017
+    """
+    gradx = cv2.Sobel(img,cv2.CV_32F,1,0,ksize=ksize)
+    grady = cv2.Sobel(img,cv2.CV_32F,0,1,ksize=ksize)
+    mag = np.sqrt(np.power(gradx,2) + np.power(grady,2)) + 1e-16
+    return mag,gradx,grady
+
+
 #############################################################################
 ######################FOR THE STARBURST ALGORITHM############################
 #############################################################################

@@ -74,7 +74,6 @@ class MPTracker(object):
                  self.crApprox = np.vstack([np.array([-30,30])+maxL[0] ,
                                             np.array([-30,30])+maxL[1]])
         d2,d1 = img.shape
-        ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
         if not self.crApprox is None:
             crtmp = img[
                 self.crApprox[1,0]:self.crApprox[1,1],
@@ -93,12 +92,13 @@ class MPTracker(object):
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                (self.parameters['close_kernelSize'],
                                                 self.parameters['close_kernelSize']))
-            thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+            img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
         if self.parameters['open_kernelSize'] > 1:
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                (self.parameters['open_kernelSize'],
                                                 self.parameters['open_kernelSize']))
-            thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+            img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
+        ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
         im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
                                                  cv2.CHAIN_APPROX_SIMPLE)
         img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
