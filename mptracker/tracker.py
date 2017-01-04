@@ -21,6 +21,8 @@ class MPTracker(object):
                 'contrast_clipLimit':10,
                 'contrast_gridSize':5,
                 'gaussian_filterSize':7,
+                'open_kernelSize':1,
+                'close_kernelSize':5,
                 'threshold':40,
                 'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
                 'number_frames':0,
@@ -54,8 +56,8 @@ class MPTracker(object):
     
     def applyShapeAnalysis(self,img):
         # Image improvements
-        img = self.clahe.apply(img)
-        img = cv2.GaussianBlur(img,
+        imo = self.clahe.apply(img)
+        img = cv2.GaussianBlur(imo,
                                (self.parameters['gaussian_filterSize'],
                                 self.parameters['gaussian_filterSize']),0)
         x1,y1 = (0,0)
@@ -69,20 +71,34 @@ class MPTracker(object):
              if not os.name == 'nt' and self.crApprox is None:
                  S,(mag,imgx,imgy) = radial_transform(img.astype(np.float32))
                  minV,maxV,minL,maxL = cv2.minMaxLoc(S)
-                 self.crApprox = np.vstack([np.array([-20,20])+maxL[0] ,
-                                            np.array([-20,20])+maxL[1]])
+                 self.crApprox = np.vstack([np.array([-30,30])+maxL[0] ,
+                                            np.array([-30,30])+maxL[1]])
         d2,d1 = img.shape
         ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
         if not self.crApprox is None:
-            minV,maxV,minL,maxL = cv2.minMaxLoc(img[
+            crtmp = img[
                 self.crApprox[1,0]:self.crApprox[1,1],
-                self.crApprox[0,0]:self.crApprox[0,1]])
+                self.crApprox[0,0]:self.crApprox[0,1]].copy()
+            crtmp = cv2.GaussianBlur(crtmp, (31, 31), 0)
+            # Testing the averaging
+            #import pylab as plt
+            #plt.imshow(crtmp)
+            #plt.show()
+            minV,maxV,minL,maxL = cv2.minMaxLoc(crtmp)
             maxL = (maxL[0]+self.crApprox[0,0],maxL[1]+self.crApprox[1,0])
         else:
             maxL = (0,0)
         # Closing morphologies
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        if self.parameters['close_kernelSize'] > 1:
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                               (self.parameters['close_kernelSize'],
+                                                self.parameters['close_kernelSize']))
+            thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        if self.parameters['open_kernelSize'] > 1:
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                               (self.parameters['open_kernelSize'],
+                                                self.parameters['open_kernelSize']))
+            thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
         im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
                                                  cv2.CHAIN_APPROX_SIMPLE)
         img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)

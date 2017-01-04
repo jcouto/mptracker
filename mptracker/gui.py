@@ -142,6 +142,27 @@ class MPTrackerWindow(QWidget):
         self.wGaussianFilterSize.valueChanged.connect(self.setGaussianFilterSize)
         paramGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
 
+        self.wOpenKernelSize = QSlider(Qt.Horizontal)
+        self.wOpenKernelSize.setValue(0)
+        self.wOpenKernelSize.setMaximum(61)
+        self.wOpenKernelSize.setMinimum(1)
+        self.wOpenKernelSize.setSingleStep(2)
+        self.wOpenKernelSizeLabel = QLabel('Morph open size [{0}]:'.format(
+            self.wOpenKernelSize.value()))
+        self.wOpenKernelSize.valueChanged.connect(self.setOpenKernelSize)
+        paramGrid.addRow(self.wOpenKernelSizeLabel, self.wOpenKernelSize)
+
+        self.wCloseKernelSize = QSlider(Qt.Horizontal)
+        self.wCloseKernelSize.setValue(5)
+        self.wCloseKernelSize.setMaximum(61)
+        self.wCloseKernelSize.setMinimum(1)
+        self.wCloseKernelSize.setSingleStep(2)
+        self.wCloseKernelSizeLabel = QLabel('Morph close size [{0}]:'.format(
+            self.wCloseKernelSize.value()))
+        self.wCloseKernelSize.valueChanged.connect(self.setCloseKernelSize)
+        paramGrid.addRow(self.wCloseKernelSizeLabel, self.wCloseKernelSize)
+
+        
         self.wBinThreshold = QSlider(Qt.Horizontal)
         self.wBinThreshold.setValue(40)
         self.wBinThresholdLabel = QLabel('Binary contrast [40]:')
@@ -228,6 +249,20 @@ class MPTrackerWindow(QWidget):
         
         self.parameters['gaussian_filterSize'] = int(value)
         self.wGaussianFilterSizeLabel.setText('Gaussian filter size [{0}]:'.format(int(value)))
+        self.processFrame(self.wFrame.value())
+
+    def setCloseKernelSize(self,value):
+        if not np.mod(value,2) == 1:
+            value += 1
+        self.parameters['close_kernelSize'] = int(value)
+        self.wCloseKernelSizeLabel.setText('Morph close size [{0}]:'.format(int(value)))
+        self.processFrame(self.wFrame.value())
+
+    def setOpenKernelSize(self,value):
+        if not np.mod(value,2) == 1:
+            value += 1
+        self.parameters['open_kernelSize'] = int(value)
+        self.wOpenKernelSizeLabel.setText('Morph open size [{0}]:'.format(int(value)))
         self.processFrame(self.wFrame.value())
         
     def setEyeRadius(self):
