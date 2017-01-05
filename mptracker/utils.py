@@ -9,6 +9,7 @@ import os
 import numpy as np
 from scipy.weave import inline
 import scipy.signal as signal
+import cv2
 
 def cart2sph(x, y, z):
     hxy = np.hypot(x, y)
@@ -304,17 +305,6 @@ Py_END_ALLOW_THREADS
     S = S / np.float32(len(radii))
     return S,(mag,imgx,imgy)
 
-def sobel3x3(image, **kwargs):
-    ''' Used in radial transform '''
-    sobel_c = np.array([-1., 0., 1.]).astype(image.dtype)
-    sobel_r = np.array([1., 2., 1.]).astype(image.dtype)
-    
-    imgx = separable_convolution2d(image, sobel_c, sobel_r)
-    imgy = separable_convolution2d(image, sobel_r, sobel_c)
-    
-    mag = np.sqrt(imgx ** 2 + imgy ** 2) + 1e-16
-    
-    return (mag, imgx, imgy)
 
 def separable_convolution2d(image, row, col, **kwargs):
     ''' Used in sobel and radial transform '''

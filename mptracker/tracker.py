@@ -20,9 +20,9 @@ class MPTracker(object):
             self.parameters = {
                 'contrast_clipLimit':10,
                 'contrast_gridSize':5,
-                'gaussian_filterSize':7,
-                'open_kernelSize':1,
-                'close_kernelSize':5,
+                'gaussian_filterSize':5,
+                'open_kernelSize':0,
+                'close_kernelSize':4,
                 'threshold':40,
                 'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
                 'number_frames':0,
@@ -87,17 +87,17 @@ class MPTracker(object):
             maxL = (maxL[0]+self.crApprox[0,0],maxL[1]+self.crApprox[1,0])
         else:
             maxL = (0,0)
-        # Closing morphologies
-        if self.parameters['close_kernelSize'] > 1:
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                               (self.parameters['close_kernelSize'],
-                                                self.parameters['close_kernelSize']))
-            img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-        if self.parameters['open_kernelSize'] > 1:
+        # Morphological operations
+        if self.parameters['open_kernelSize'] > 0:
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                (self.parameters['open_kernelSize'],
                                                 self.parameters['open_kernelSize']))
             img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
+        if self.parameters['close_kernelSize'] > 0:
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                               (self.parameters['close_kernelSize'],
+                                                self.parameters['close_kernelSize']))
+            img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
         ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
         im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
                                                  cv2.CHAIN_APPROX_SIMPLE)

@@ -124,7 +124,7 @@ class MPTrackerWindow(QWidget):
         paramGrid.addRow(self.wContrastLimLabel,self.wContrastLim)
 
         self.wContrastGridSize = QSlider(Qt.Horizontal)
-        self.wContrastGridSize.setValue(5)
+        self.wContrastGridSize.setValue(7)
         self.wContrastGridSize.setMaximum(200)
         self.wContrastGridSize.setMinimum(1)
         self.wContrastGridSizeLabel = QLabel('Contrast grid size [{0}]:'.format(
@@ -133,7 +133,7 @@ class MPTrackerWindow(QWidget):
         paramGrid.addRow(self.wContrastGridSizeLabel,self.wContrastGridSize)
 
         self.wGaussianFilterSize = QSlider(Qt.Horizontal)
-        self.wGaussianFilterSize.setValue(7)
+        self.wGaussianFilterSize.setValue(3)
         self.wGaussianFilterSize.setMaximum(61)
         self.wGaussianFilterSize.setMinimum(1)
         self.wGaussianFilterSize.setSingleStep(2)
@@ -145,18 +145,18 @@ class MPTrackerWindow(QWidget):
         self.wOpenKernelSize = QSlider(Qt.Horizontal)
         self.wOpenKernelSize.setValue(0)
         self.wOpenKernelSize.setMaximum(61)
-        self.wOpenKernelSize.setMinimum(1)
-        self.wOpenKernelSize.setSingleStep(2)
+        self.wOpenKernelSize.setMinimum(0)
+        self.wOpenKernelSize.setSingleStep(1)
         self.wOpenKernelSizeLabel = QLabel('Morph open size [{0}]:'.format(
             self.wOpenKernelSize.value()))
         self.wOpenKernelSize.valueChanged.connect(self.setOpenKernelSize)
         paramGrid.addRow(self.wOpenKernelSizeLabel, self.wOpenKernelSize)
 
         self.wCloseKernelSize = QSlider(Qt.Horizontal)
-        self.wCloseKernelSize.setValue(5)
+        self.wCloseKernelSize.setValue(3)
         self.wCloseKernelSize.setMaximum(61)
-        self.wCloseKernelSize.setMinimum(1)
-        self.wCloseKernelSize.setSingleStep(2)
+        self.wCloseKernelSize.setMinimum(0)
+        self.wCloseKernelSize.setSingleStep(1)
         self.wCloseKernelSizeLabel = QLabel('Morph close size [{0}]:'.format(
             self.wCloseKernelSize.value()))
         self.wCloseKernelSize.valueChanged.connect(self.setCloseKernelSize)
@@ -252,15 +252,11 @@ class MPTrackerWindow(QWidget):
         self.processFrame(self.wFrame.value())
 
     def setCloseKernelSize(self,value):
-        if not np.mod(value,2) == 1:
-            value += 1
         self.parameters['close_kernelSize'] = int(value)
         self.wCloseKernelSizeLabel.setText('Morph close size [{0}]:'.format(int(value)))
         self.processFrame(self.wFrame.value())
 
     def setOpenKernelSize(self,value):
-        if not np.mod(value,2) == 1:
-            value += 1
         self.parameters['open_kernelSize'] = int(value)
         self.wOpenKernelSizeLabel.setText('Morph open size [{0}]:'.format(int(value)))
         self.processFrame(self.wFrame.value())
@@ -312,7 +308,8 @@ class MPTrackerWindow(QWidget):
             int(self.parameters['contrast_gridSize']))
         self.wGaussianFilterSize.setValue(
             int(self.parameters['gaussian_filterSize']))
-
+        self.wOpenKernelSize.setValue(int(self.parameters['open_kernelSize']))
+        self.wCloseKernelSize.setValue(int(self.parameters['close_kernelSize']))
     # Update
     def processFrame(self,val = 0):
         f = int(val)
@@ -383,10 +380,12 @@ class MPTrackerWindow(QWidget):
                 ax1.tick_params(axis='both', colors='black')
             for a in [axdiam,axaz,axel]:
                 cleanAx(a)
-            a.axis('tight')
-            axel.set_ylim([1,2])
-            axdiam.set_ylim([0,2.])
-            axaz.set_ylim([0,3.7])
+                a.axis('tight')
+            axel.set_ylim(np.array([-0.25,0.25]) + np.nanmedian(el))
+            axaz.set_ylim(np.array([-1,1]) + np.nanmedian(az))
+            axdiam.set_ylim(np.array([0,1 + np.nanmedian(diam)]))
+#            axdiam.set_ylim([0,2.])
+#            axaz.set_ylim([0,3.7])
             axel.set_xlabel('Frame number',color='black')
             plt.show()
         elif e.key() == 82:
