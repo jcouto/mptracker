@@ -18,6 +18,8 @@ import h5py as h5
 from tempfile import mkdtemp
 from shutil import copyfile
 import cv2 # For reading 16bit tif
+import re
+
 
 def createResultsFile(filename,nframes,MPIO = False):
     if MPIO:
@@ -75,20 +77,26 @@ class TiffFileSequence(object):
         '''Lets you access a sequence of TIFF files without noticing...'''
         self.path = os.path.dirname(targetpath)
         self.basename,extension = os.path.splitext(os.path.basename(targetpath))
-        for f in range(len(self.basename)):
-            if not self.basename[-f].isdigit():
-                break
-        if not -f+1 == 0:
-            f = -f+1
-        else:
-            f = -1
-        self.basename = self.basename[:f]
-        filtered_filenames = []
+        #for f in range(len(self.basename)):
+        #    if not self.basename[-f].isdigit():
+        #        break
+        #if not -f+1 == 0:
+        #    f = -f+1
+        #else:
+        #    f = -1
+        #
+        #self.basename = self.basename[:f]
+        #filtered_filenames = []
+        #self.filenames = []
+        #for f in filenames:
+        #    if self.basename in f:
+        #        self.filenames.append(f)
+
         filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
-        self.filenames = []
-        for f in filenames:
-            if self.basename in f:
-                self.filenames.append(f)
+        # Use natural sort
+        pat = re.compile('([0-9]+)')
+        self.filenames = [filenames[j] for j in np.lexsort(np.array([[int(i) for i in pat.findall(os.path.basename(fname))] for fname in filenames]).T)]
+
         if not len(self.filenames):
             print('Wrong target path: ' + pjoin(self.path,'*' + extension))
             raise
@@ -111,7 +119,8 @@ class TiffFileSequence(object):
     def getFrameIndex(self,frame):
         '''Computes the frame index from multipage tiff files.'''
         fileidx = np.where(self.framesOffset <= frame)[0][-1]
-        return fileidx,frame - self.framesOffset[fileidx]
+        # This breaks for huge tif files
+        return fileidx,int(frame - self.framesOffset[fileidx])
         
     def getDescripion(self,frame):
         '''Gets image description tag from tiff page'''

@@ -7,7 +7,7 @@
 import sys
 import os
 import numpy as np
-from scipy.weave import inline
+from weave import inline
 import scipy.signal as signal
 import cv2
 
