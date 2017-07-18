@@ -22,6 +22,8 @@ import re
 
 
 def createResultsFile(filename,nframes,MPIO = False):
+    if not os.path.isdir(os.path.dirname(filename)):
+        os.makedirs(os.path.dirname(filename))
     if MPIO:
         f = h5.File(filename, 'w', driver='mpio', comm=MPI.COMM_WORLD)
     else:
@@ -100,10 +102,18 @@ class TiffFileSequence(object):
         if not len(self.filenames):
             print('Wrong target path: ' + pjoin(self.path,'*' + extension))
             raise
-        self.files = [TiffFile(f) for f in self.filenames]
+        self.files = []
         framesPerFile = []
-        for f in self.files:
-            N,h,w = f.series[0].shape
+        for i,f in enumerate(self.filenames):
+            if i==0 or i== len(self.filenames)-1:
+                self.files.append(TiffFile(f))
+                try:
+                    N,h,w = self.files[i].series[0].shape
+                except:
+                    h,w = self.files[i].series[0].shape
+                    N = 1
+            else:
+                self.files.append(None)
             framesPerFile.append(np.int64(N))
             if 'h' in dir(self):
                 if not self.h == h:
@@ -136,6 +146,10 @@ class TiffFileSequence(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
+        if self.files[fileidx] is None:
+            self.files[fileidx] = TiffFile(self.filenames[fileidx])
+            if not self.files[fileidx-1] is None:
+                self.files[fileidx-1].close()
         img = self.files[fileidx].asarray(frameidx)
         if img.dtype == np.uint16:
             img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0))
@@ -178,3 +192,6 @@ class NorpixFile(object):
     def close(self):
         for fd in self.files:
             fd.close()
+
+# AVI
+
