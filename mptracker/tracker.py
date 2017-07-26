@@ -56,10 +56,6 @@ class MPTracker(object):
     
     def applyShapeAnalysis(self,img):
         # Image improvements
-        imo = self.clahe.apply(img)
-        img = cv2.GaussianBlur(imo,
-                               (self.parameters['gaussian_filterSize'],
-                                self.parameters['gaussian_filterSize']),0)
         x1,y1 = (0,0)
         if len(self.ROIpoints) >= 4:
              pts = np.array(self.ROIpoints).reshape((-1,1,2))
@@ -87,6 +83,10 @@ class MPTracker(object):
             maxL = (maxL[0]+self.crApprox[0,0],maxL[1]+self.crApprox[1,0])
         else:
             maxL = (0,0)
+        imo = self.clahe.apply(img)
+        img = cv2.GaussianBlur(imo,
+                               (self.parameters['gaussian_filterSize'],
+                                self.parameters['gaussian_filterSize']),0)
         # Morphological operations
         if self.parameters['open_kernelSize'] > 0:
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
@@ -168,7 +168,7 @@ class MPTracker(object):
             pupil_pos[1] += x1
         if self.concatenateBinaryImage:
             img = np.concatenate((img,thresh),axis=0)
-        return img,(maxL[1],maxL[0]),(pupil_pos[1],pupil_pos[0]),(short_axis,long_axis),(b,a,phi)
+        return img,(maxL[0] + x1,maxL[1]+y1),(pupil_pos[1],pupil_pos[0]),(short_axis,long_axis),(b,a,phi)
 
     def getCenterOfMass(self,contour):
         # center of mass

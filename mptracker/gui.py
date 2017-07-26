@@ -328,7 +328,7 @@ class MPTrackerWindow(QWidget):
         elif e.key() == 80:
             results = self.results.copy()
             clahe = cv2.createCLAHE(7,(10,10))
-            ii = 1000
+            ii = 10
             img = clahe.apply(self.imgstack.get(ii))
             fig = plt.figure(figsize = [10,3])
             ax = fig.add_axes([0.025,0.05,0.25,0.95],aspect='equal')
@@ -341,6 +341,7 @@ class MPTrackerWindow(QWidget):
                     [results['reference'][0][1],results['reference'][1][1]],'-|y',
                     alpha=0.8,markersize=25,lw=1)
             ax.plot(results['pupilPix'][ii,0],results['pupilPix'][ii,1],'r.',alpha=0.8)
+            ax.plot(results['crPix'][ii,0],results['crPix'][ii,1],'bo',alpha=0.8)            
             s1 = ellipseToContour(results['pupilPix'][ii,:],results['ellipsePix'][ii,2],
                                   results['ellipsePix'][ii,3],
                                   results['ellipsePix'][ii,4],np.linspace(0,2*np.pi,200))
