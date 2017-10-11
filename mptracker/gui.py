@@ -190,6 +190,10 @@ class MPTrackerWindow(QWidget):
         self.wDisplayBinaryImage.setChecked(False)
         self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
         paramGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
+        self.wInvertThreshold = QCheckBox()
+        self.wInvertThreshold.setChecked(False)
+        self.wInvertThreshold.stateChanged.connect(self.setInvertThreshold)
+        paramGrid.addRow(QLabel('White pupil:'),self.wInvertThreshold)
         
         grid.addWidget(paramGroup,0,0,3,1)
         
@@ -224,6 +228,10 @@ class MPTrackerWindow(QWidget):
         
     def updateTrackerOutputBinaryImage(self,state):
         self.tracker.concatenateBinaryImage = state
+        self.processFrame(self.wFrame.value())
+
+    def setInvertThreshold(self,value):
+        self.parameters['invertThreshold'] = value
         self.processFrame(self.wFrame.value())
 
     def setBinThreshold(self,value):
@@ -333,6 +341,8 @@ class MPTrackerWindow(QWidget):
             fig = plt.figure(figsize = [10,3])
             ax = fig.add_axes([0.025,0.05,0.25,0.95],aspect='equal')
             ax.imshow(img,cmap='gray',aspect='equal')
+            if not 'reference' in results.keys():
+                results['reference'] = [self.parameters['points'][0],self.parameters['points'][2]]
             eyeCorners  = results['reference']
             reference = [eyeCorners[0][0] + np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
                          eyeCorners[0][1] + np.diff([eyeCorners[0][1],eyeCorners[1][1]])/2.]
@@ -355,12 +365,11 @@ class MPTrackerWindow(QWidget):
             axdiam = fig.add_axes([0.36,0.76,0.6,0.2]) #,sharex=axel
             axaz = fig.add_axes([0.36,0.46,0.6,0.2])
 
-
             diam = computePupilDiameterFromEllipse(results['ellipsePix'],
                                                    computeConversionFactor(results['reference']))
             az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
                                                   results['reference'],results['crPix'])
-
+            
             axdiam.plot(medfilt(diam));axdiam.set_xticklabels([])
             axaz.plot(medfilt(az));axaz.set_xticklabels([]);
 

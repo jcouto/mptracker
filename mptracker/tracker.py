@@ -24,6 +24,7 @@ class MPTracker(object):
                 'open_kernelSize':0,
                 'close_kernelSize':4,
                 'threshold':40,
+                'invertThreshold':False,
                 'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
                 'number_frames':0,
             }
@@ -64,11 +65,15 @@ class MPTracker(object):
              x2 = x1 + w
              y2 = y1 + h
              img = img[y1:y2,x1:x2]
-             if not os.name == 'nt' and self.crApprox is None:
-                 S,(mag,imgx,imgy) = radial_transform(img.astype(np.float32))
-                 minV,maxV,minL,maxL = cv2.minMaxLoc(S)
-                 self.crApprox = np.vstack([np.array([-30,30])+maxL[0] ,
-                                            np.array([-30,30])+maxL[1]])
+             if self.crApprox is None:
+                 try:
+                     S,(mag,imgx,imgy) = radial_transform(img.astype(np.float32))
+                     minV,maxV,minL,maxL = cv2.minMaxLoc(S)
+                     self.crApprox = np.vstack([np.array([-30,30])+maxL[0] ,
+                                                np.array([-30,30])+maxL[1]])
+                 except:
+                     print('Could not do weave stuff?')
+                     pass
         d2,d1 = img.shape
         if not self.crApprox is None:
             crtmp = img[
@@ -99,6 +104,8 @@ class MPTracker(object):
                                                 self.parameters['close_kernelSize']))
             img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
         ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
+        if self.parameters['invertThreshold']:
+            thresh = cv2.bitwise_not(thresh)
         im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
                                                  cv2.CHAIN_APPROX_SIMPLE)
         img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
@@ -111,7 +118,7 @@ class MPTracker(object):
         #rect = np.array([cv2.boundingRect(c)[2:] for c in contours],
         #                dtype = np.float32)
         minArea = 200
-        maxArea = 10000
+        maxArea = 50000
         #radius = np.max(rect,axis = 1)/2.
         circleIdx = np.where((area > minArea) & (area < maxArea))[0]
         #(np.abs(1 - rect[:,0]/rect[:,1]) <= 0.5) & 

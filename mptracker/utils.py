@@ -7,7 +7,13 @@
 import sys
 import os
 import numpy as np
-from weave import inline
+try:
+    from scipy.weave import inline
+except:
+    try:
+        from weave import inline
+    except:
+        print('Failed getting weave...')
 import scipy.signal as signal
 import cv2
 
