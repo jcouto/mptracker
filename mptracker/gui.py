@@ -321,13 +321,18 @@ class MPTrackerWindow(QWidget):
     # Update
     def processFrame(self,val = 0):
         f = int(val)
-        img = self.imgstack.get(f)
-        img,cr_pos,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
-        self.results['ellipsePix'][f,:2] = pupil_radius
-        self.results['ellipsePix'][f,2:] = pupil_ellipse_par
-        self.results['pupilPix'][f,:] = pupil_pos
-        self.results['crPix'][f,:] = cr_pos
-        self.setImage(img)
+        try:
+            img = self.imgstack.get(f)
+        except:
+            img = None
+            print("Failed loading frame {0}".format(f))
+        if not img is None:
+            img,cr_pos,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
+            self.results['ellipsePix'][f,:2] = pupil_radius
+            self.results['ellipsePix'][f,2:] = pupil_ellipse_par
+            self.results['pupilPix'][f,:] = pupil_pos
+            self.results['crPix'][f,:] = cr_pos
+            self.setImage(img)
         self.app.processEvents()
         
     def keyPressEvent(self, e):
