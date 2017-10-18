@@ -88,41 +88,44 @@ class MPTracker(object):
             maxL = (maxL[0]+self.crApprox[0,0],maxL[1]+self.crApprox[1,0])
         else:
             maxL = (0,0)
+        # Contrast equalization
         imo = self.clahe.apply(img)
+        # Gaussian blurring
         img = cv2.GaussianBlur(imo,
                                (self.parameters['gaussian_filterSize'],
                                 self.parameters['gaussian_filterSize']),0)
-        # Morphological operations
+        # Morphological operations (Open)
         if self.parameters['open_kernelSize'] > 0:
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                (self.parameters['open_kernelSize'],
                                                 self.parameters['open_kernelSize']))
             img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
+        # Morphological operations (Close)
         if self.parameters['close_kernelSize'] > 0:
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                (self.parameters['close_kernelSize'],
                                                 self.parameters['close_kernelSize']))
             img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+        # Threshold image
         ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
         if self.parameters['invertThreshold']:
             thresh = cv2.bitwise_not(thresh)
+        # Find the contours
         im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
                                                  cv2.CHAIN_APPROX_SIMPLE)
+        # For display only
         img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
         thresh = cv2.cvtColor(thresh,cv2.COLOR_GRAY2RGB)
         if not self.crApprox is None:
             img = cv2.circle(img, maxL, 4, (0,0,255), -1)
-        # Shape analysis
+        # Shape analysis (get the area of each contour)
         area = np.array([cv2.contourArea(c) for c in contours],
                         dtype = np.float32)
-        #rect = np.array([cv2.boundingRect(c)[2:] for c in contours],
-        #                dtype = np.float32)
+        # Discard very large and very small areas.
         minArea = 200
         maxArea = 50000
-        #radius = np.max(rect,axis = 1)/2.
         circleIdx = np.where((area > minArea) & (area < maxArea))[0]
-        #(np.abs(1 - rect[:,0]/rect[:,1]) <= 0.5) & 
-        #(np.abs(1 - area/(np.pi * (radius**2))) <= 0.8)
+
         score = np.ones_like(circleIdx,dtype=float)
         # Try to fit the contours
         for e,i in enumerate(circleIdx):
@@ -131,7 +134,7 @@ class MPTracker(object):
             pts = contours[i][:,0,:]
             distM = np.sqrt((pts[:,0] - cX)**2 + (pts[:,1] - cY)**2)
             mm,ss = (np.median(distM),np.std(distM))
-            ptsIdx = (distM<mm+ss*1.5) & (distM>mm-ss*1.5)
+            ptsIdx = (distM<mm+ss*1.3) & (distM>mm-ss*1.3)
             pts = pts[ptsIdx,:]
             (pupil_pos,
              (long_axis,
@@ -140,39 +143,46 @@ class MPTracker(object):
             if np.sum(np.isfinite([b,a]))==0:
                 s1 = self.ellipseToContour(pupil_pos,a,b,phi,R=self.R)
                 score[e] = cv2.matchShapes(contours[i],s1,1,0)
+            # Remove candidates that are close to the corneal reflection center
+            if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < 30:
+                dist = 1000
             score[e] *= (dist**2)
             img = cv2.drawContours(img,
                                    [contours[i]], -1, (70, 0, 150),1)
-            #font = cv2.FONT_HERSHEY_SIMPLEX
-            #img = cv2.putText(img,'{0}'.format(round(dist)),
-            #          (cX,cY), font, 0.5,(0,0,255),2,cv2.LINE_AA)
+            # Text?
+#            font = cv2.FONT_HERSHEY_SIMPLEX
+#            img = cv2.putText(img,'{0}'.format(round(dist)),
+#                      (cX,cY), font, 0.5,(0,0,255),2,cv2.LINE_AA)
         # Get the actual estimate for the contour with best score
         pupil_pos = [0,0]
         (long_axis,short_axis) = [np.nan,np.nan]
         (b,a,phi) = (np.nan,np.nan,0)
         if len(score):
+            # Select the one with the best score
             idx = circleIdx[np.argmin(score)]
-            # discard outliers
+            # discard outliers (points that are far from the median)
             cX,cY = self.getCenterOfMass(contours[idx])
             pts = contours[idx][:,0,:]
             dist = np.sqrt((pts[:,0] - cX)**2 + (pts[:,1] - cY)**2)
             mm,ss = (np.median(dist),np.std(dist))
-            ptsIdx = (dist<mm+ss*1.5) & (dist>mm-ss*1.5)
+            ptsIdx = (dist<mm+ss*1.) & (dist>mm-ss*1.)
             pts = pts[ptsIdx,:]
             # Estimate pupil diam and position
             (pupil_pos,
              (long_axis,short_axis)), (b,a,phi) = fitEllipse(
                  np.fliplr(pts).astype(np.float32))
-            img = cv2.drawContours(img,
-                                   [contours[idx]], -1, (0, 255, 0),1)
-            s1 = ellipseToContour(pupil_pos,a,b,phi,R=self.R)
-            img = cv2.drawContours(img,
-                                   [s1], -1, (0, 255, 255),2)
-            thresh = cv2.drawContours(thresh,
-                                      [s1], -1, (0, 255, 255),2)
-            # Absolute positions
-            pupil_pos[0] += y1 
-            pupil_pos[1] += x1
+            # is it a circle-ish thing?
+            if (long_axis/short_axis) < 1.3:
+                img = cv2.drawContours(img,
+                                       [contours[idx]], -1, (0, 255, 0),1)
+                s1 = ellipseToContour(pupil_pos,a,b,phi,R=self.R)
+                img = cv2.drawContours(img,
+                                       [s1], -1, (0, 255, 255),2)
+                thresh = cv2.drawContours(thresh,
+                                          [s1], -1, (0, 255, 255),2)
+                # Absolute positions
+                pupil_pos[0] += y1 
+                pupil_pos[1] += x1
         if self.concatenateBinaryImage:
             img = np.concatenate((img,thresh),axis=0)
         return img,(maxL[0] + x1,maxL[1]+y1),(pupil_pos[1],pupil_pos[0]),(short_axis,long_axis),(b,a,phi)
