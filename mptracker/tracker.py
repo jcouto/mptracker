@@ -45,11 +45,12 @@ class MPTracker(object):
                               self.parameters['contrast_gridSize']))
         else:
             class dummy(object):
-                def __init__(self):
-                    pass
+                def __init__(self,par):
+                    self.parameters = par
+                    self.gamma = self.parameters['contrast_clipLimit']
                 def apply(self,img):
                     return img
-            self.clahe = dummy()
+            self.clahe = dummy(self.parameters)
 
     def apply(self,img):
         #return self.applyStarburst(img)
