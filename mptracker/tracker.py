@@ -32,6 +32,8 @@ class MPTracker(object):
             self.parameters = parameters
         self.set_clhe()
         self.ROIpoints = []
+        if 'ROIpoints' in self.parameters.keys():
+            self.setROI(self.parameters['ROIpoints'])
         self.crApprox = None
         self.R = np.linspace(0,2.1*np.pi, 20)
         self.concatenateBinaryImage=False
@@ -68,13 +70,14 @@ class MPTracker(object):
              img = img[y1:y2,x1:x2]
              if self.crApprox is None:
                  try:
-                     S,(mag,imgx,imgy) = radial_transform(img.astype(np.float32))
-                     minV,maxV,minL,maxL = cv2.minMaxLoc(S)
+                     #S,(mag,imgx,imgy) = radial_transform(img.astype(np.float32))
+                     #minV,maxV,minL,maxL = cv2.minMaxLoc(S)
+                     mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(img,(21,21),100))
+                     minV,maxV,minL,maxL = cv2.minMaxLoc(cv2.GaussianBlur(mag,(21,21),100))
                      self.crApprox = np.vstack([np.array([-30,30])+maxL[0] ,
                                                 np.array([-30,30])+maxL[1]])
-                 except:
-                     print('Could not do weave stuff?')
-                     pass
+                 except Exception as e:
+                     print(e)
         d2,d1 = img.shape
         if not self.crApprox is None:
             crtmp = img[

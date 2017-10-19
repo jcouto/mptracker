@@ -19,6 +19,7 @@ try:
                                  QCheckBox,
                                  QTextEdit,
                                  QSlider,
+                                 QPushButton,
                                  QLabel,
                                  QGraphicsView,
                                  QGraphicsScene,
@@ -37,6 +38,7 @@ except:
                              QCheckBox,
                              QTextEdit,
                              QSlider,
+                             QPushButton,
                              QLabel,
                              QGraphicsView,
                              QGraphicsScene,
@@ -194,6 +196,9 @@ class MPTrackerWindow(QWidget):
         self.wInvertThreshold.setChecked(False)
         self.wInvertThreshold.stateChanged.connect(self.setInvertThreshold)
         paramGrid.addRow(QLabel('White pupil:'),self.wInvertThreshold)
+        self.saveParameters = QPushButton('Save tracker parameters')
+        self.saveParameters.clicked.connect(self.saveTrackerParameters)
+        paramGrid.addRow(self.saveParameters)
         
         grid.addWidget(paramGroup,0,0,3,1)
         
@@ -426,14 +431,14 @@ class MPTrackerWindow(QWidget):
                                                        (time.time()-ts)/60.))
         if self.resultfile is None:
             try:
-                self.resultfile = QFileDialog().getSaveFileName()
+                self.resultfile = str(QFileDialog().getSaveFileName()[0])
             except:
                 self.resultfile = ''
         self.resultfile = str(self.resultfile)
-        print self.resultfile
         fname,ext = os.path.splitext(self.resultfile)
         if len(ext)==0:
-            print('File has no extension:'+self.resultfile)
+            print('File has no extension:'+self.resultfile + ' Crack...')
+            self.resultfile = None
             return
         if not os.path.isfile(self.resultfile):
             fd = createResultsFile(self.resultfile,
@@ -454,8 +459,30 @@ class MPTrackerWindow(QWidget):
             fd['pointsPix'][:] = np.array(self.parameters['points'])
             fd.close()
             print("Saved to " + self.resultfile)
+            self.saveTrackerParameters()
         else:
-            print("File already exists.")
+            print("File already exists. Delete it first.")
+            
+    def saveTrackerParameters(self):
+        if self.resultfile is None:
+            try:
+                paramfile = str(QFileDialog().getSaveFileName()[0])
+            except:
+                paramfile = ''
+        else:
+            paramfile = str(self.resultfile)
+        print(paramfile)
+        fname,ext = os.path.splitext(paramfile)
+        print(fname)
+        if len(fname)==0:
+            print('Can not save to file with no name...'+paramfile + ' Crack...')
+            return
+        import json
+        paramfile = fname+'.json'
+        with open(paramfile,'w') as f:
+            json.dump(self.parameters,f,indent=4, sort_keys=True)
+        print('Saved parameters.')
+        
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',
