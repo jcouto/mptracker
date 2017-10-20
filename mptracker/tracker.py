@@ -32,8 +32,10 @@ class MPTracker(object):
             self.parameters = parameters
         self.set_clhe()
         self.ROIpoints = []
-        if 'ROIpoints' in self.parameters.keys():
-            self.setROI(self.parameters['ROIpoints'])
+        if 'points' in self.parameters.keys():
+            self.setROI(self.parameters['points'])
+        if 'crApprox' in self.parameters.keys():
+            self.crApprox = self.parameters['crApprox']
         self.crApprox = None
         self.R = np.linspace(0,2.1*np.pi, 20)
         self.concatenateBinaryImage=False
