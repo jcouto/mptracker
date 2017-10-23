@@ -41,7 +41,7 @@ def sph2cart(az, el, r):
 #    rho = np.hypot(x, y)
 #    return theta, rho
 
-def computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = 'medfilt'):
+def computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = None):
     ''' diam = computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = 'medfilt')
         ellipsePix is a Nx2 array (short_axis,long_axis)
         Compute the pupil diameter as the diameter of a circle with the same area as the fitted ellipse.
@@ -56,6 +56,7 @@ def computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothin
     elif smoothing.lower() == 'medfilt':
         return medfilt(diam)
     elif smoothing.lower() == 'sgolay':
+        from scipy.signal import savgol_filter
         return savgol_filter(diam, window_length = 5, polyorder = 1, mode='nearest')
     
 def computeConversionFactor(ref,estimate = 6.0):
@@ -78,7 +79,7 @@ def convertPixelToEyeCoords(pupilPix,
     [az,el,theta] = cart2sph((pPix[:,0]-reference[0])*cFactor,
                              (pPix[:,1]-reference[1])*cFactor,
                              eyeDiameterEstimate/2.)
-    return az,el,theta
+    return np.rad2deg(az),np.rad2deg(el),np.rad2deg(theta)
 
 def fitEllipse(points, orientation_tolerance = 1e-3):
     '''
