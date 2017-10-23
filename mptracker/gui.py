@@ -63,7 +63,7 @@ description = ''' GUI to define parameters and track the pupil.'''
 
 class MPTrackerWindow(QWidget):
     def __init__(self,targetpath = None,
-                 resfile = None, 
+                 resfile = None, params = None,
                  app = None, usetmp = False):
         super(MPTrackerWindow,self).__init__()
         self.app = app
@@ -86,10 +86,9 @@ class MPTrackerWindow(QWidget):
             self.imgstack = NorpixFile(target)
         else:
             print('Unknown extension for:'+target)
-        self.tracker = MPTracker()
+        self.tracker = MPTracker(parameters = params)
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
-        self.parameters['points'] = []
         self.resultfile = resfile
         self.results = {}
         self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
@@ -117,7 +116,7 @@ class MPTrackerWindow(QWidget):
         
 
         self.wContrastLim = QSlider(Qt.Horizontal)
-        self.wContrastLim.setValue(15)
+        self.wContrastLim.setValue(self.parameters['contrast_clipLimit'])
         self.wContrastLim.setMinimum(0)
         self.wContrastLim.setMaximum(200)
         self.wContrastLimLabel = QLabel('Contrast limit [{0}]:'.format(
@@ -126,7 +125,7 @@ class MPTrackerWindow(QWidget):
         paramGrid.addRow(self.wContrastLimLabel,self.wContrastLim)
 
         self.wContrastGridSize = QSlider(Qt.Horizontal)
-        self.wContrastGridSize.setValue(7)
+        self.wContrastGridSize.setValue(self.parameters['contrast_gridSize'])
         self.wContrastGridSize.setMaximum(200)
         self.wContrastGridSize.setMinimum(1)
         self.wContrastGridSizeLabel = QLabel('Contrast grid size [{0}]:'.format(
@@ -135,7 +134,7 @@ class MPTrackerWindow(QWidget):
         paramGrid.addRow(self.wContrastGridSizeLabel,self.wContrastGridSize)
 
         self.wGaussianFilterSize = QSlider(Qt.Horizontal)
-        self.wGaussianFilterSize.setValue(3)
+        self.wGaussianFilterSize.setValue(self.parameters['gaussian_filterSize'])
         self.wGaussianFilterSize.setMaximum(61)
         self.wGaussianFilterSize.setMinimum(1)
         self.wGaussianFilterSize.setSingleStep(2)
@@ -145,7 +144,7 @@ class MPTrackerWindow(QWidget):
         paramGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
 
         self.wOpenKernelSize = QSlider(Qt.Horizontal)
-        self.wOpenKernelSize.setValue(0)
+        self.wOpenKernelSize.setValue(self.parameters['open_kernelSize'])
         self.wOpenKernelSize.setMaximum(61)
         self.wOpenKernelSize.setMinimum(0)
         self.wOpenKernelSize.setSingleStep(1)
@@ -155,7 +154,7 @@ class MPTrackerWindow(QWidget):
         paramGrid.addRow(self.wOpenKernelSizeLabel, self.wOpenKernelSize)
 
         self.wCloseKernelSize = QSlider(Qt.Horizontal)
-        self.wCloseKernelSize.setValue(3)
+        self.wCloseKernelSize.setValue(self.parameters['close_kernelSize'])
         self.wCloseKernelSize.setMaximum(61)
         self.wCloseKernelSize.setMinimum(0)
         self.wCloseKernelSize.setSingleStep(1)
@@ -166,7 +165,7 @@ class MPTrackerWindow(QWidget):
 
         
         self.wBinThreshold = QSlider(Qt.Horizontal)
-        self.wBinThreshold.setValue(40)
+        self.wBinThreshold.setValue(self.parameters['threshold'])
         self.wBinThresholdLabel = QLabel('Binary contrast [40]:')
         self.wBinThreshold.setMinimum(0)
         self.wBinThreshold.setMaximum(255)
@@ -193,7 +192,7 @@ class MPTrackerWindow(QWidget):
         self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
         paramGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
         self.wInvertThreshold = QCheckBox()
-        self.wInvertThreshold.setChecked(False)
+        self.wInvertThreshold.setChecked(self.parameters['invertThreshold'])
         self.wInvertThreshold.stateChanged.connect(self.setInvertThreshold)
         paramGrid.addRow(QLabel('White pupil:'),self.wInvertThreshold)
         self.saveParameters = QPushButton('Save tracker parameters')
@@ -493,6 +492,10 @@ def main():
                         type = str,
                         default=None,
                         help = 'Output data path.')
+    parser.add_argument('-p','--param',
+                        type = str,
+                        default=None,
+                        help = 'Parameter file.')
     parser.add_argument('--usetmp',
                         default = False,
                         action = 'store_true',
@@ -503,7 +506,14 @@ def main():
     target = None
     if os.path.isfile(args.target):
         target = args.target
+    params = None
+
+    if not args.param is None:
+        import json
+        with open(args.param,'r') as fd:
+            params = json.load(fd)
     w = MPTrackerWindow(target,app = app,
+                        params = params,
                         resfile = args.output,
                         usetmp=args.usetmp)
     sys.exit(app.exec_())

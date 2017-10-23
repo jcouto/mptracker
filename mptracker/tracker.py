@@ -24,19 +24,19 @@ class MPTracker(object):
                 'open_kernelSize':0,
                 'close_kernelSize':4,
                 'threshold':40,
+                'crApprox':None,
+                'points':[],
                 'invertThreshold':False,
                 'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
                 'number_frames':0,
             }
         else:
             self.parameters = parameters
+        print(self.parameters)
         self.set_clhe()
         self.ROIpoints = []
         if 'points' in self.parameters.keys():
             self.setROI(self.parameters['points'])
-        if 'crApprox' in self.parameters.keys():
-            self.crApprox = self.parameters['crApprox']
-        self.crApprox = None
         self.R = np.linspace(0,2.1*np.pi, 20)
         self.concatenateBinaryImage=False
     def setROI(self, points):
@@ -70,28 +70,28 @@ class MPTracker(object):
              x2 = x1 + w
              y2 = y1 + h
              img = img[y1:y2,x1:x2]
-             if self.crApprox is None:
+             if self.parameters['crApprox'] is None:
                  try:
                      #S,(mag,imgx,imgy) = radial_transform(img.astype(np.float32))
                      #minV,maxV,minL,maxL = cv2.minMaxLoc(S)
                      mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(img,(21,21),100))
                      minV,maxV,minL,maxL = cv2.minMaxLoc(cv2.GaussianBlur(mag,(21,21),100))
-                     self.crApprox = np.vstack([np.array([-30,30])+maxL[0] ,
-                                                np.array([-30,30])+maxL[1]])
+                     self.parameters['crApprox'] = [[maxL[0]-30,maxL[0]+30],
+                                                    [maxL[1]-30,maxL[1]+30]]
                  except Exception as e:
                      print(e)
         d2,d1 = img.shape
-        if not self.crApprox is None:
+        if not self.parameters['crApprox'] is None:
             crtmp = img[
-                self.crApprox[1,0]:self.crApprox[1,1],
-                self.crApprox[0,0]:self.crApprox[0,1]].copy()
+                self.parameters['crApprox'][1][0]:self.parameters['crApprox'][1][1],
+                self.parameters['crApprox'][0][0]:self.parameters['crApprox'][0][1]].copy()
             crtmp = cv2.GaussianBlur(crtmp, (31, 31), 0)
             # Testing the averaging
             #import pylab as plt
             #plt.imshow(crtmp)
             #plt.show()
             minV,maxV,minL,maxL = cv2.minMaxLoc(crtmp)
-            maxL = (maxL[0]+self.crApprox[0,0],maxL[1]+self.crApprox[1,0])
+            maxL = (maxL[0]+self.parameters['crApprox'][0][0],maxL[1]+self.parameters['crApprox'][1][0])
         else:
             maxL = (0,0)
         # Contrast equalization
@@ -113,16 +113,23 @@ class MPTracker(object):
                                                 self.parameters['close_kernelSize']))
             img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
         # Threshold image
-        ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
         if self.parameters['invertThreshold']:
+            if not self.parameters['crApprox'] is None:
+                tmp = (crtmp > self.parameters['threshold'])
+                iiy,iix = np.where(crtmp > self.parameters['threshold']/2)
+                img[self.parameters['crApprox'][1][0]+iiy,
+                    self.parameters['crApprox'][0][0] + iix] =  self.parameters['threshold'] - 10
+            ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
             thresh = cv2.bitwise_not(thresh)
+        else:
+            ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
         # Find the contours
         im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
                                                  cv2.CHAIN_APPROX_SIMPLE)
         # For display only
         img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
         thresh = cv2.cvtColor(thresh,cv2.COLOR_GRAY2RGB)
-        if not self.crApprox is None:
+        if not self.parameters['crApprox'] is None:
             img = cv2.circle(img, maxL, 4, (0,0,255), -1)
         # Shape analysis (get the area of each contour)
         area = np.array([cv2.contourArea(c) for c in contours],
