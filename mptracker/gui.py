@@ -84,6 +84,8 @@ class MPTrackerWindow(QWidget):
             self.imgstack = TiffFileSequence(target)
         elif os.path.splitext(self.targetpath)[1] in ['.seq']:
             self.imgstack = NorpixFile(target)
+        elif os.path.splitext(self.targetpath)[1] in ['.avi']:
+            self.imgstack =  AVIFileSequence(target)
         else:
             print('Unknown extension for:'+target)
         self.tracker = MPTracker(parameters = params)
@@ -345,7 +347,7 @@ class MPTrackerWindow(QWidget):
         elif e.key() == 80:
             results = self.results.copy()
             clahe = cv2.createCLAHE(7,(10,10))
-            ii = 10
+            ii = 100
             img = clahe.apply(self.imgstack.get(ii))
             fig = plt.figure(figsize = [10,3])
             ax = fig.add_axes([0.025,0.05,0.25,0.95],aspect='equal')
@@ -371,8 +373,8 @@ class MPTrackerWindow(QWidget):
             ax.axis('off');ax.axis('tight');
 
             axel = fig.add_axes([0.36,0.16,0.6,0.2])
-            axdiam = fig.add_axes([0.36,0.76,0.6,0.2]) #,sharex=axel
-            axaz = fig.add_axes([0.36,0.46,0.6,0.2])
+            axdiam = fig.add_axes([0.36,0.76,0.6,0.2])#,sharex=axel)
+            axaz = fig.add_axes([0.36,0.46,0.6,0.2])#,sharex=axel)
 
             diam = computePupilDiameterFromEllipse(results['ellipsePix'],
                                                    computeConversionFactor(results['reference']))
@@ -400,9 +402,9 @@ class MPTrackerWindow(QWidget):
             for a in [axdiam,axaz,axel]:
                 cleanAx(a)
                 a.axis('tight')
-            axel.set_ylim(np.array([-0.25,0.25]) + np.nanmedian(el))
-            axaz.set_ylim(np.array([-1,1]) + np.nanmedian(az))
-            axdiam.set_ylim(np.array([0,1 + np.nanmedian(diam)]))
+            axel.set_ylim(np.array([-1,1])*np.nanstd(el) + np.nanmedian(el))
+            axaz.set_ylim(np.array([-1,1])*np.nanstd(az) + np.nanmedian(az))
+            axdiam.set_ylim(np.array([0,0.5 + np.nanmedian(diam)]))
 #            axdiam.set_ylim([0,2.])
 #            axaz.set_ylim([0,3.7])
             axel.set_xlabel('Frame number',color='black')

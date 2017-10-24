@@ -93,7 +93,7 @@ def fitEllipse(points, orientation_tolerance = 1e-3):
         print("Check inputs to fitEllipse.")
         return (np.array([-1., -1.]), [np.nan,np.nan]),(0.0,np.Inf,np.nan)
     if len(points) < 5:
-        print("Not enough points...")
+        #print("Not enough points...")
         return (np.array([-1., -1.]), [np.nan, np.nan]),(0.0,np.Inf,np.nan)
     # remove bias of the ellipse - to make matrix inversion more accurate.
     x = points[:, 0]

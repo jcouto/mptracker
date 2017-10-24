@@ -91,7 +91,8 @@ class MPTracker(object):
             #plt.imshow(crtmp)
             #plt.show()
             minV,maxV,minL,maxL = cv2.minMaxLoc(crtmp)
-            maxL = (maxL[0]+self.parameters['crApprox'][0][0],maxL[1]+self.parameters['crApprox'][1][0])
+            maxL = (maxL[0]+self.parameters['crApprox'][0][0],maxL[1]+
+                    self.parameters['crApprox'][1][0])
         else:
             maxL = (0,0)
         # Contrast equalization
@@ -115,10 +116,14 @@ class MPTracker(object):
         # Threshold image
         if self.parameters['invertThreshold']:
             if not self.parameters['crApprox'] is None:
-                tmp = (crtmp > self.parameters['threshold'])
-                iiy,iix = np.where(crtmp > self.parameters['threshold']/2)
-                img[self.parameters['crApprox'][1][0]+iiy,
-                    self.parameters['crApprox'][0][0] + iix] =  self.parameters['threshold'] - 10
+#                tmp = (crtmp > self.parameters['threshold'])
+#                iiy,iix = np.where(crtmp > self.parameters['threshold']/2)
+                tmp = img[self.parameters['crApprox'][1][0]:self.parameters['crApprox'][1][1],
+                          self.parameters['crApprox'][0][0]:self.parameters['crApprox'][0][1]]
+                img[self.parameters['crApprox'][1][0]:self.parameters['crApprox'][1][1],
+                    self.parameters['crApprox'][0][0]:self.parameters['crApprox'][0][1]] = (tmp.astype(np.float32) * (1. - crtmp/float(maxV))).astype(img.dtype)
+#                img[self.parameters['crApprox'][1][0]+iiy,
+#                    self.parameters['crApprox'][0][0] + iix] =  self.parameters['threshold'] - 10
             ret,thresh = cv2.threshold(img,self.parameters['threshold'],255,0)
             thresh = cv2.bitwise_not(thresh)
         else:
@@ -126,6 +131,8 @@ class MPTracker(object):
         # Find the contours
         im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
                                                  cv2.CHAIN_APPROX_SIMPLE)
+        #img = cv2.drawContours(img,
+        #                       contours, -1, (20, 0, 250),1)
         # For display only
         img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
         thresh = cv2.cvtColor(thresh,cv2.COLOR_GRAY2RGB)
@@ -135,10 +142,19 @@ class MPTracker(object):
         area = np.array([cv2.contourArea(c) for c in contours],
                         dtype = np.float32)
         # Discard very large and very small areas.
-        minArea = 200
-        maxArea = 50000
+        minArea = 400
+        maxArea = 70000
         circleIdx = np.where((area > minArea) & (area < maxArea))[0]
-
+        
+        #font = cv2.FONT_HERSHEY_SIMPLEX
+        #for i,c in enumerate(contours):
+        #    try:
+        #        cX,cY = self.getCenterOfMass(c)
+        #        
+        #        img = cv2.putText(img,'{0}'.format(round(area[i])),
+        #                          (cX,cY), font, 0.5,(0,0,255),2,cv2.LINE_AA)
+        #    except:
+        #        print(c)
         score = np.ones_like(circleIdx,dtype=float)
         # Try to fit the contours
         for e,i in enumerate(circleIdx):
@@ -157,15 +173,12 @@ class MPTracker(object):
                 s1 = self.ellipseToContour(pupil_pos,a,b,phi,R=self.R)
                 score[e] = cv2.matchShapes(contours[i],s1,1,0)
             # Remove candidates that are close to the corneal reflection center
-            if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < 30:
+            if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < 15:
                 dist = 1000
             score[e] *= (dist**2)
             img = cv2.drawContours(img,
                                    [contours[i]], -1, (70, 0, 150),1)
             # Text?
-#            font = cv2.FONT_HERSHEY_SIMPLEX
-#            img = cv2.putText(img,'{0}'.format(round(dist)),
-#                      (cX,cY), font, 0.5,(0,0,255),2,cv2.LINE_AA)
         # Get the actual estimate for the contour with best score
         pupil_pos = [0,0]
         (long_axis,short_axis) = [np.nan,np.nan]
@@ -185,7 +198,7 @@ class MPTracker(object):
              (long_axis,short_axis)), (b,a,phi) = fitEllipse(
                  np.fliplr(pts).astype(np.float32))
             # is it a circle-ish thing?
-            if (long_axis/short_axis) < 1.3:
+            if (long_axis/short_axis) < 1.4:
                 img = cv2.drawContours(img,
                                        [contours[idx]], -1, (0, 255, 0),1)
                 s1 = ellipseToContour(pupil_pos,a,b,phi,R=self.R)

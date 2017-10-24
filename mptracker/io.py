@@ -195,3 +195,56 @@ class NorpixFile(object):
 
 # AVI
 
+class AVIFileSequence(object):
+    def __init__(self,targetpath = None):
+        '''Lets you access a sequence of AVI files without noticing...'''
+        self.path = os.path.dirname(targetpath)
+        self.basename,extension = os.path.splitext(os.path.basename(targetpath))
+        filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
+        # Use natural sort
+        pat = re.compile('([0-9]+)')
+        self.filenames = [f for f in np.sort(filenames)]
+#        self.filenames = [filenames[j] for j in np.lexsort(np.array([[int(i) for i in pat.findall(os.path.basename(fname))] for fname in filenames]).T)]
+
+        if not len(self.filenames):
+            print('Wrong target path: ' + pjoin(self.path,'*' + extension))
+            raise
+        self.files = []
+        framesPerFile = []
+        for i,f in enumerate(self.filenames):
+            self.files.append(cv2.VideoCapture(f))
+            N =  int(self.files[-1].get(cv2.CAP_PROP_FRAME_COUNT))
+            h = int(self.files[-1].get(cv2.CAP_PROP_FRAME_HEIGHT))
+            w = int(self.files[-1].get(cv2.CAP_PROP_FRAME_WIDTH))
+            framesPerFile.append(np.int64(N))
+            if 'h' in dir(self):
+                if not self.h == h:
+                    print('Wrong height value on one of the files.')
+                    raise
+            else:
+                self.h = h
+                self.w = w
+        self.framesPerFile = np.array(framesPerFile, dtype=np.int64)
+        self.framesOffset = np.hstack([0,np.cumsum(self.framesPerFile[:-1])])
+        self.nFrames = np.sum(framesPerFile)
+
+    def getFrameIndex(self,frame):
+        '''Computes the frame index from multipage tiff files.'''
+        fileidx = np.where(self.framesOffset <= frame)[0][-1]
+        # This breaks for huge tif files
+        return fileidx,int(frame - self.framesOffset[fileidx])
+        
+    def get(self,frame):
+        '''Returns an image given the frame ID.
+        Useful attributes are nFrames, h (frame height) and w (frame width)
+        '''
+        fileidx,frameidx = self.getFrameIndex(frame)
+        self.files[fileidx].set(1,frameidx)
+        ret,img = self.files[fileidx].read()
+        if img.dtype == np.uint16:
+            img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0))
+        return img
+
+    def close(self):
+        for fd in self.files:
+            fd.close()
