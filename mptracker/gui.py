@@ -88,7 +88,7 @@ class MPTrackerWindow(QWidget):
             self.imgstack =  AVIFileSequence(target)
         else:
             print('Unknown extension for:'+target)
-        self.tracker = MPTracker(parameters = params)
+        self.tracker = MPTracker(parameters = params, drawProcessedFrame = True)
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
         self.resultfile = resfile
@@ -200,7 +200,13 @@ class MPTrackerWindow(QWidget):
         self.saveParameters = QPushButton('Save tracker parameters')
         self.saveParameters.clicked.connect(self.saveTrackerParameters)
         paramGrid.addRow(self.saveParameters)
-        
+
+
+        self.wDrawProcessed = QCheckBox()
+        self.wDrawProcessed.setChecked(self.tracker.drawProcessedFrame)
+        self.wDrawProcessed.stateChanged.connect(self.setDrawProcessed)
+        paramGrid.addRow(QLabel('Draw processed frame:'),self.wDrawProcessed)
+
         grid.addWidget(paramGroup,0,0,3,1)
         
         self.wFrame = QSlider(Qt.Horizontal)
@@ -211,10 +217,10 @@ class MPTrackerWindow(QWidget):
         grid.addWidget(self.wFrame,0,2,1,4)
         # images and plots
         img = self.imgstack.get(int(self.wFrame.value()))
-        img,cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
+        cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
-        self.setImage(img)
+        self.setImage(self.tracker.img)
         self.view.mouseReleaseEvent = self.selectPoints
         grid.addWidget(self.view,1,2,6,5)
         ####################
@@ -238,6 +244,11 @@ class MPTrackerWindow(QWidget):
 
     def setInvertThreshold(self,value):
         self.parameters['invertThreshold'] = value
+        self.processFrame(self.wFrame.value())
+
+    def setDrawProcessed(self,value):
+        self.tracker.drawProcessedFrame = value
+        print value
         self.processFrame(self.wFrame.value())
 
     def setBinThreshold(self,value):
@@ -290,8 +301,8 @@ class MPTrackerWindow(QWidget):
         img = self.imgstack.get(int(self.wFrame.value()))
         height,width = img.shape
         self.tracker.setROI(self.parameters['points'])
-        img,cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
-        self.setImage(img)
+        cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
+        self.setImage(self.tracker.img)
         self.putPoints()
         
     def setImage(self,image):
@@ -333,12 +344,12 @@ class MPTrackerWindow(QWidget):
             img = None
             print("Failed loading frame {0}".format(f))
         if not img is None:
-            img,cr_pos,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
+            cr_pos,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
             self.results['ellipsePix'][f,:2] = pupil_radius
             self.results['ellipsePix'][f,2:] = pupil_ellipse_par
             self.results['pupilPix'][f,:] = pupil_pos
             self.results['crPix'][f,:] = cr_pos
-            self.setImage(img)
+            self.setImage(self.tracker.img)
         self.app.processEvents()
         
     def keyPressEvent(self, e):
