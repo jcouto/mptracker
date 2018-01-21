@@ -91,6 +91,7 @@ class MPTrackerWindow(QWidget):
         self.tracker = MPTracker(parameters = params, drawProcessedFrame = True)
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
+        self.parameters['crTrack'] = True
         self.resultfile = resfile
         self.results = {}
         self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
@@ -189,14 +190,19 @@ class MPTrackerWindow(QWidget):
         self.wPoints = QLabel('nan,nan \n nan,nan \n nan,nan \n nan,nan\n')
         paramGrid.addRow(QLabel('ROI points:'),self.wPoints)
         self.wPoints.mouseDoubleClickEvent = self.clearPoints
-        self.wDisplayBinaryImage = QCheckBox()
-        self.wDisplayBinaryImage.setChecked(False)
-        self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
-        paramGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
         self.wInvertThreshold = QCheckBox()
         self.wInvertThreshold.setChecked(self.parameters['invertThreshold'])
         self.wInvertThreshold.stateChanged.connect(self.setInvertThreshold)
         paramGrid.addRow(QLabel('White pupil:'),self.wInvertThreshold)
+        self.wDisableCRtrack = QCheckBox()
+        self.wDisableCRtrack.setChecked(self.parameters['crTrack'])
+        self.wDisableCRtrack.stateChanged.connect(self.setCRTrack)
+        paramGrid.addRow(QLabel('Track corneal reflection:'),self.wDisableCRtrack)
+
+        self.wDisplayBinaryImage = QCheckBox()
+        self.wDisplayBinaryImage.setChecked(False)
+        self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
+        paramGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
         self.saveParameters = QPushButton('Save tracker parameters')
         self.saveParameters.clicked.connect(self.saveTrackerParameters)
         paramGrid.addRow(self.saveParameters)
@@ -244,6 +250,10 @@ class MPTrackerWindow(QWidget):
 
     def setInvertThreshold(self,value):
         self.parameters['invertThreshold'] = value
+        self.processFrame(self.wFrame.value())
+
+    def setCRTrack(self,value):
+        self.parameters['crTrack'] = value
         self.processFrame(self.wFrame.value())
 
     def setDrawProcessed(self,value):
