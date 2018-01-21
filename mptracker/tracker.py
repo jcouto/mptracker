@@ -98,7 +98,6 @@ def extractPupilShapeAnalysis(img,params,
                               expectedPosition = None,
                               clahe = None,
                               R = np.linspace(0,2.1*np.pi, 20),
-                              crTracking = True,
                               drawProcessedFrame = False,
                               concatenateBinaryImage = False):
     # Contrast and filtering
@@ -117,8 +116,10 @@ def extractPupilShapeAnalysis(img,params,
             try:
                 mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(img,(21,21),100))
                 minV,maxV,minL,maxL = cv2.minMaxLoc(cv2.GaussianBlur(mag,(21,21),100))
-                params['crApprox'] = np.array([[maxL[0]-int(w*0.05),maxL[0]+int(w*0.05)],
-                                               [maxL[1]-int(h*0.05),maxL[1]+int(h*0.05)]])
+                params['crApprox'] = np.array([[maxL[0]-int(w*0.05),
+                                                maxL[0]+int(w*0.05)],
+                                               [maxL[1]-int(h*0.05),
+                                                maxL[1]+int(h*0.05)]])
             except Exception as e:
                  print(e)
     d2,d1 = img.shape
@@ -126,13 +127,11 @@ def extractPupilShapeAnalysis(img,params,
         crtmp = img[
             params['crApprox'][1][0]:params['crApprox'][1][1],
             params['crApprox'][0][0]:params['crApprox'][0][1]].copy()
-        mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(crtmp,(21,21),100))
-        crtmp = cv2.GaussianBlur(mag, (31, 31), 0)
-        # Testing the averaging
+        crtmp = cv2.GaussianBlur(crtmp, (21, 21), 0)
         minV,maxV,minL,maxL = cv2.minMaxLoc(crtmp)
-        maxL = (maxL[0]+params['crApprox'][0][0],maxL[1]+
-                params['crApprox'][1][0])
-        
+        # Testing the averaging
+        maxL = (maxL[0]+params['crApprox'][0][0],
+                maxL[1]+params['crApprox'][1][0])
     else:
         maxL = (0,0)
     outimg = img.copy()
@@ -177,13 +176,16 @@ def extractPupilShapeAnalysis(img,params,
     if drawProcessedFrame:
         outimg = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
     if not params['crApprox'] is None:
-        outimg = cv2.circle(outimg, maxL, 4, (0,0,255), -1)
+        outimg = cv2.circle(outimg, maxL, 2, (0,0,255), 1)
     # Shape analysis (get the area of each contour)
     area = np.array([cv2.contourArea(c) for c in contours],
                     dtype = np.float32)
     # Discard very large and very small areas.
-    minArea = 0.01*roiArea
-    maxArea = roiArea*0.75
+    #minArea = 0.01*roiArea
+    #maxArea = roiArea*0.75
+    
+    minArea = params['minPupilArea']*roiArea
+    maxArea = roiArea*params['maxPupilArea']
     circleIdx = np.where((area > minArea) & (area < maxArea))[0]
 
     #font = cv2.FONT_HERSHEY_SIMPLEX
@@ -215,8 +217,8 @@ def extractPupilShapeAnalysis(img,params,
             s1 = ellipseToContour(pupil_pos,np.mean([a,b]),np.mean([a,b]),phi,R=R)
             score[e] = cv2.matchShapes(contours[i],s1,1,0)
         # Remove candidates that are close to the corneal reflection center
-        if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
-            dist = 1000
+        #if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
+        #    dist = 1000
         score[e] *= (dist**2)
         cv2.drawContours(mask,[contours[i]],0,255,-1)
         mean_val = cv2.mean(thresh,mask = mask)
@@ -261,9 +263,10 @@ def extractPupilShapeAnalysis(img,params,
             pupil_pos[1] += x1
     if concatenateBinaryImage and drawProcessedFrame:
         outimg = np.concatenate((outimg,thresh),axis=0)
-    if not crTracking:
-        maxL = [0,0]
-    return outimg,(maxL[0] + x1,maxL[1]+y1),(pupil_pos[1],pupil_pos[0]),(short_axis,long_axis),(b,a,phi)
+    return outimg,(maxL[0] + x1,
+                   maxL[1]+y1),(pupil_pos[1],
+                                pupil_pos[0]),(short_axis,
+                                               long_axis),(b,a,phi)
 
 class MPTracker(object):
     def __init__(self,parameters = None, drawProcessedFrame=False):
@@ -275,8 +278,9 @@ class MPTracker(object):
                 'open_kernelSize':0,
                 'close_kernelSize':4,
                 'threshold':40,
+                'minPupilArea': 0.01,
+                'maxPupilArea': 0.75,
                 'crApprox':None,
-                'crTrack':True,
                 'points':[],
                 'invertThreshold':False,
                 'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
@@ -314,7 +318,6 @@ class MPTracker(object):
                                         ROIpoints = self.ROIpoints,
                                         params = self.parameters,
                                         clahe = self.clahe,
-                                        crTracking = self.parameters['crTrack'],
                                         concatenateBinaryImage = self.concatenateBinaryImage,
                                         drawProcessedFrame=self.drawProcessedFrame)
         self.img = res[0]

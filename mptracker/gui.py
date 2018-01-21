@@ -98,10 +98,10 @@ class MPTrackerWindow(QWidget):
                                            dtype = np.float32)
         self.results['ellipsePix'].fill(np.nan)
         self.results['pupilPix'] = np.empty((self.parameters['number_frames'],2),
-                                            dtype=np.int)
+                                            dtype=np.float32)
         self.results['pupilPix'].fill(np.nan)
         self.results['crPix'] = np.empty((self.parameters['number_frames'],2),
-                                         dtype = np.int)
+                                         dtype = np.float32)
         self.results['crPix'].fill(np.nan)
 
         self.initUI()
@@ -359,6 +359,9 @@ class MPTrackerWindow(QWidget):
             self.results['ellipsePix'][f,2:] = pupil_ellipse_par
             self.results['pupilPix'][f,:] = pupil_pos
             self.results['crPix'][f,:] = cr_pos
+            self.wNFrames.setText(str(f) +
+                                  '//' + str(self.parameters['number_frames']))
+
             self.setImage(self.tracker.img)
         self.app.processEvents()
         
@@ -399,9 +402,13 @@ class MPTrackerWindow(QWidget):
 
             diam = computePupilDiameterFromEllipse(results['ellipsePix'],
                                                    computeConversionFactor(results['reference']))
-            az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
-                                                  results['reference'],results['crPix'])
-            
+            if self.parameters['crTrack']:
+                az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
+                                                      results['reference'],results['crPix'])
+            else:
+                az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
+                                                      results['reference'])
+                
             axdiam.plot(medfilt(diam));axdiam.set_xticklabels([])
             axaz.plot(medfilt(az));axaz.set_xticklabels([]);
 
@@ -423,9 +430,12 @@ class MPTrackerWindow(QWidget):
             for a in [axdiam,axaz,axel]:
                 cleanAx(a)
                 a.axis('tight')
-            axel.set_ylim(np.array([-1,1])*np.nanstd(el) + np.nanmedian(el))
-            axaz.set_ylim(np.array([-1,1])*np.nanstd(az) + np.nanmedian(az))
-            axdiam.set_ylim(np.array([0,0.5 + np.nanmedian(diam)]))
+            axel.set_ylim(np.array([-2.5,2.5])*np.nanstd(el) +
+                          np.nanmedian(el))
+            axaz.set_ylim(np.array([-2.5,2.5])*np.nanstd(az) +
+                          np.nanmedian(az))
+            axdiam.set_ylim(np.array([-2.5,2.5])*np.nanstd(diam) +
+                            np.nanmedian(diam))
 #            axdiam.set_ylim([0,2.])
 #            axaz.set_ylim([0,3.7])
             axel.set_xlabel('Frame number',color='black')
@@ -471,9 +481,14 @@ class MPTrackerWindow(QWidget):
             diam = computePupilDiameterFromEllipse(self.results['ellipsePix'],
                                                    computeConversionFactor(
                                                        self.results['reference']))
-            az,el,theta = convertPixelToEyeCoords(self.results['pupilPix'],
-                                                  self.results['reference'],
-                                                  self.results['crPix'])
+            if self.parameters['crTrack']:
+                az,el,theta = convertPixelToEyeCoords(self.results['pupilPix'],
+                                                      self.results['reference'],
+                                                      self.results['crPix'])
+            else:
+                az,el,theta = convertPixelToEyeCoords(self.results['pupilPix'],
+                                                      self.results['reference'])
+                
             fd['diameter'][:] = diam
             fd['azimuth'][:] = az
             fd['elevation'][:] = el
