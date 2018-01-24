@@ -213,9 +213,11 @@ def extractPupilShapeAnalysis(img,params,
          (long_axis,
           short_axis)), (b,a,phi) = fitEllipse(
               np.fliplr(pts).astype(np.float32))
-        if np.sum(np.isfinite([b,a]))==0:
+        
+        if np.sum(np.isfinite([b,a]))==2:
             s1 = ellipseToContour(pupil_pos,np.mean([a,b]),np.mean([a,b]),phi,R=R)
-            score[e] = cv2.matchShapes(contours[i],s1,1,0)
+            score[e] = cv2.matchShapes(contours[i],s1,2,0.0)
+        
         # Remove candidates that are close to the corneal reflection center
         #if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
         #    dist = 1000
