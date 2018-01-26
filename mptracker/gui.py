@@ -503,19 +503,26 @@ class MPTrackerWindow(QWidget):
     def saveTrackerParameters(self):
         if self.resultfile is None:
             try:
-                paramfile = str(QFileDialog().getSaveFileName())
+                paramfile = QFileDialog().getSaveFileName()
             except:
                 paramfile = ''
         else:
             paramfile = str(self.resultfile)
+        if type(paramfile) is tuple:
+            paramfile = paramfile[0]
         fname,ext = os.path.splitext(paramfile)
+        if fname is None:
+            fname =  paramfile
         if len(fname)==0:
             print('Can not save to file with no name...'+paramfile + ' Crack...')
             return
         import json
         paramfile = fname + '.json'
         with open(paramfile,'w') as f:
-            json.dump(self.parameters,f,indent=4, sort_keys=True)
+            tmp = dict(self.parameters)
+            if 'crApprox' in tmp.keys():
+                tmp['crApprox'] = tmp['crApprox'].tolist()
+            json.dump(tmp,f,indent=4, sort_keys=True)
         print('Saved parameters [{0}].'.format(paramfile))
         
 def main():
@@ -548,6 +555,8 @@ def main():
         import json
         with open(args.param,'r') as fd:
             params = json.load(fd)
+            if 'crApprox' in params.keys():
+                params['crApprox'] = np.array(params['crApprox'])
     w = MPTrackerWindow(target,app = app,
                         params = params,
                         resfile = args.output,
