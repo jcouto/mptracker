@@ -387,7 +387,7 @@ class MPTrackerWindow(QWidget):
                     alpha=0.8,markersize=25,lw=1)
             ax.plot(results['pupilPix'][ii,0],results['pupilPix'][ii,1],'r.',alpha=0.8)
             ax.plot(results['crPix'][ii,0],results['crPix'][ii,1],'bo',alpha=0.8)            
-            s1 = ellipseToContour(results['pupilPix'][ii,:],results['ellipsePix'][ii,2],
+            s1 = ellipseToContour(results['pupilPix'][ii,:],results['ellipsePix'][ii,2]/2.,
                                   results['ellipsePix'][ii,3],
                                   results['ellipsePix'][ii,4],np.linspace(0,2*np.pi,200))
 
@@ -400,7 +400,7 @@ class MPTrackerWindow(QWidget):
             axdiam = fig.add_axes([0.36,0.76,0.6,0.2])#,sharex=axel)
             axaz = fig.add_axes([0.36,0.46,0.6,0.2])#,sharex=axel)
 
-            diam = computePupilDiameterFromEllipse(results['ellipsePix'],
+            diam = computePupilDiameterFromEllipse(results['ellipsePix']/2.,
                                                    computeConversionFactor(results['reference']))
             if self.parameters['crTrack']:
                 az,el,theta = convertPixelToEyeCoords(results['pupilPix'],

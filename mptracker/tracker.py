@@ -24,7 +24,6 @@ def extractPupilShapeAnalysis(img,params,
                               expectedDiam = None,
                               expectedPosition = None,
                               clahe = None,
-                              R = np.linspace(0,2.1*np.pi, 20),
                               drawProcessedFrame = False,
                               concatenateBinaryImage = False):
     # Contrast and filtering
@@ -108,9 +107,6 @@ def extractPupilShapeAnalysis(img,params,
     area = np.array([cv2.contourArea(c) for c in contours],
                     dtype = np.float32)
     # Discard very large and very small areas.
-    #minArea = 0.01*roiArea
-    #maxArea = roiArea*0.75
-    
     minArea = params['minPupilArea']*roiArea
     maxArea = roiArea*params['maxPupilArea']
     circleIdx = np.where((area > minArea) & (area < maxArea))[0]
@@ -127,7 +123,7 @@ def extractPupilShapeAnalysis(img,params,
     score = np.ones_like(circleIdx,dtype=float)
     # Try to fit the contours
     mask = np.zeros(thresh.shape,np.uint8)
-
+    tmpe = np.zeros_like(outimg[:,:,0])
     for e,i in enumerate(circleIdx):
         cX,cY = getCenterOfMass(contours[i])
         dist = np.sqrt((cX - d1/2)**2 + (cY - d2/2)**2)
@@ -136,15 +132,11 @@ def extractPupilShapeAnalysis(img,params,
         mm,ss = (np.median(distM),np.std(distM))
         ptsIdx = (distM<mm+ss*1.3) & (distM>mm-ss*1.3)
         pts = pts[ptsIdx,:]
-
-        (pupil_pos, (short_axis, long_axis), phi) = cv2.fitEllipse(
-             np.fliplr(pts).astype(np.float32)) 
-        phi = np.pi*phi/180
-        if np.sum(np.isfinite([short_axis,long_axis]))==2:
-            s1 = ellipseToContour(pupil_pos,np.mean([short_axis,long_axis])/2.,
-                                  np.mean([short_axis,long_axis])/2.,phi,R=R)
-            score[e] = cv2.matchShapes(contours[i],s1,2,0.0)
-        
+        ellipse = cv2.fitEllipse(pts) 
+        tmpe[:] = 0
+        cv2.ellipse(tmpe,ellipse,255,-1)
+        _,econt,_ = cv2.findContours(tmpe,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        score[e] = cv2.matchShapes(contours[i],econt[0],2,0.0)
         # Remove candidates that are close to the corneal reflection center
         #if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
         #    dist = 1000
@@ -174,29 +166,23 @@ def extractPupilShapeAnalysis(img,params,
         ptsIdx = (dist<mm+ss*1.) & (dist>mm-ss*1.)
         pts = pts[ptsIdx,:]
         # Estimate pupil diam and position
-        (pupil_pos, (short_axis, long_axis), phi) = cv2.fitEllipse(
-             np.fliplr(pts).astype(np.float32)) 
-        phi = np.pi*phi/180
+        ellipse = cv2.fitEllipse(pts) 
         # is it a circle-ish thing?
-        if (long_axis/short_axis) < 1.4:
-            s1 = ellipseToContour(pupil_pos,long_axis/2,short_axis/2,phi,R=R)
-            
+        if (ellipse[1][1]/ellipse[1][0]) < 1.4:
             outimg = cv2.drawContours(outimg,
                                         [contours[idx]], -1, (0, 255, 0),1)
-            outimg = cv2.drawContours(outimg,
-                                        [s1], -1, (0, 255, 255),2)
-            thresh = cv2.drawContours(thresh,
-                                      [s1], -1, (0, 255, 255),2)
+            cv2.ellipse(outimg,ellipse,(0,255,255),2,cv2.LINE_AA)
             # Absolute positions
-            pupil_pos = np.array(pupil_pos)
+            pupil_pos = np.array(ellipse[0])
+            short_axis = ellipse[1][0]
+            long_axis = ellipse[1][1]
+            phi = ellipse[2]
             pupil_pos[0] += y1 
             pupil_pos[1] += x1
     if concatenateBinaryImage and drawProcessedFrame:
         outimg = np.concatenate((outimg,thresh),axis=0)
     return outimg,(maxL[0] + x1,
-                   maxL[1]+y1),(pupil_pos[1],
-                                pupil_pos[0]),(short_axis/2.,
-                                               long_axis/2.),(short_axis/2.,long_axis/2.,phi)
+                   maxL[1]+y1),pupil_pos,(short_axis,long_axis),(short_axis,long_axis,phi)
 
 class MPTracker(object):
     def __init__(self,parameters = None, drawProcessedFrame=False):
@@ -224,7 +210,6 @@ class MPTracker(object):
         self.ROIpoints = []
         if 'points' in self.parameters.keys():
             self.setROI(self.parameters['points'])
-        self.R = np.linspace(0,2.1*np.pi, 20)
         self.concatenateBinaryImage=False
     def setROI(self, points):
         self.ROIpoints = points
