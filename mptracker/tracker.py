@@ -19,79 +19,6 @@ def getCenterOfMass(contour):
     M = cv2.moments(contour)
     return (int(M["m10"] / M["m00"]),int(M["m01"] / M["m00"]))
 
-def fitEllipse(points, orientation_tolerance = 1e-3):
-    '''
-    Fit ellipse to contour.
-    Usage:
-    (center_fit, 
-    (long_axis / 2.0,short_axis / 2.0),
-    (a,b,orientation_rad) = fitEllipse(points)
-    '''
-    if points is None or len(points) == 0:
-        print("Check inputs to fitEllipse.")
-        return (np.array([-1., -1.]), [np.nan,np.nan]),(0.0,np.Inf,np.nan)
-    if len(points) < 5:
-        #print("Not enough points...")
-        return (np.array([-1., -1.]), [np.nan, np.nan]),(0.0,np.Inf,np.nan)
-    # remove bias of the ellipse - to make matrix inversion more accurate.
-    x = points[:, 0]
-    y = points[:, 1]
-    mean_x = np.mean(x)
-    mean_y = np.mean(y)
-    x = x - mean_x
-    y = y - mean_y
-    # Make x and y colum vectors
-    x.shape = (np.size(x), 1)
-    y.shape = (np.size(y), 1)
-    # the estimation for the conic equation of the ellipse
-    X = np.hstack((x ** 2, x * y, y ** 2, x, y))
-    try:
-        A = np.dot(np.sum(X, axis=0), np.linalg.inv(np.dot(X.transpose(), X)))
-    except np.linalg.LinAlgError:
-        print('A linear algebra error has occurred while ellipse fitting')
-        return (np.array([-1., -1.]), [np.nan,np.nan]),(0.0,np.Inf,np.nan)
-    # extract parameters from the conic equation
-    (a, b, c, d, e) = A
-    # remove the orientation from the ellipse
-    if min(np.abs(b / a), np.abs(b / c)) > orientation_tolerance:
-        orientation_rad = 1. / 2 * np.arctan(b / (c - a))
-        cos_phi = np.cos(orientation_rad)
-        sin_phi = np.sin(orientation_rad)
-        (a, b, c, d, e) = (a * cos_phi ** 2 - b * cos_phi * sin_phi + c
-                           * sin_phi ** 2, 0, a * sin_phi ** 2 + b
-                           * cos_phi * sin_phi + c * cos_phi ** 2, d
-                           * cos_phi - e * sin_phi, d * sin_phi + e
-                           * cos_phi)
-        (mean_x, mean_y) = (cos_phi * mean_x - sin_phi * mean_y, sin_phi
-                            * mean_x + cos_phi * mean_y)
-    else:
-        orientation_rad = 0
-        cos_phi = np.cos(orientation_rad)
-        sin_phi = np.sin(orientation_rad)
-    # check if conic equation represents an ellipse
-    test = a * c
-    # if we found an ellipse return it's data
-    if test > 0:
-        # make sure coefficients are positive as required
-        if a < 0:
-            (a, c, d, e) = (-a, -c, -d, -e)
-        # final ellipse parameters
-        X0 = mean_x - d / 2 / a
-        Y0 = mean_y - e / 2 / c
-        F = 1 + d ** 2 / (4 * a) + e ** 2 / (4 * c)
-        (a, b) = (np.sqrt(F / a), np.sqrt(F / c))
-        long_axis = 2 * np.max([a, b])
-        short_axis = 2 * np.min([a, b])
-        # rotate the axes backwards to find the center point of the original TILTED ellipse
-        R = np.array([[cos_phi, sin_phi], [-sin_phi, cos_phi]])
-        P_in = np.dot(R, np.array([[X0], [Y0]]))
-        X0_in = P_in[0]
-        Y0_in = P_in[1]
-        center_fit = np.array([X0_in[0], Y0_in[0]])
-        return (center_fit, (long_axis / 2.0,short_axis / 2.0)), (a,b,orientation_rad)
-    return (np.array([-1., -1.]), [np.nan, np.nan]),(0.0,np.Inf,np.nan)
-
-
 def extractPupilShapeAnalysis(img,params,
                               ROIpoints = [],
                               expectedDiam = None,
@@ -209,13 +136,13 @@ def extractPupilShapeAnalysis(img,params,
         mm,ss = (np.median(distM),np.std(distM))
         ptsIdx = (distM<mm+ss*1.3) & (distM>mm-ss*1.3)
         pts = pts[ptsIdx,:]
-        (pupil_pos,
-         (long_axis,
-          short_axis)), (b,a,phi) = fitEllipse(
-              np.fliplr(pts).astype(np.float32))
-        
-        if np.sum(np.isfinite([b,a]))==2:
-            s1 = ellipseToContour(pupil_pos,np.mean([a,b]),np.mean([a,b]),phi,R=R)
+
+        (pupil_pos, (short_axis, long_axis), phi) = cv2.fitEllipse(
+             np.fliplr(pts).astype(np.float32)) 
+        phi = np.pi*phi/180
+        if np.sum(np.isfinite([short_axis,long_axis]))==2:
+            s1 = ellipseToContour(pupil_pos,np.mean([short_axis,long_axis])/2.,
+                                  np.mean([short_axis,long_axis])/2.,phi,R=R)
             score[e] = cv2.matchShapes(contours[i],s1,2,0.0)
         
         # Remove candidates that are close to the corneal reflection center
@@ -247,12 +174,12 @@ def extractPupilShapeAnalysis(img,params,
         ptsIdx = (dist<mm+ss*1.) & (dist>mm-ss*1.)
         pts = pts[ptsIdx,:]
         # Estimate pupil diam and position
-        (pupil_pos,
-         (long_axis,short_axis)), (b,a,phi) = fitEllipse(
-             np.fliplr(pts).astype(np.float32))
+        (pupil_pos, (short_axis, long_axis), phi) = cv2.fitEllipse(
+             np.fliplr(pts).astype(np.float32)) 
+        phi = np.pi*phi/180
         # is it a circle-ish thing?
         if (long_axis/short_axis) < 1.4:
-            s1 = ellipseToContour(pupil_pos,a,b,phi,R=R)
+            s1 = ellipseToContour(pupil_pos,long_axis/2,short_axis/2,phi,R=R)
             
             outimg = cv2.drawContours(outimg,
                                         [contours[idx]], -1, (0, 255, 0),1)
@@ -261,14 +188,15 @@ def extractPupilShapeAnalysis(img,params,
             thresh = cv2.drawContours(thresh,
                                       [s1], -1, (0, 255, 255),2)
             # Absolute positions
+            pupil_pos = np.array(pupil_pos)
             pupil_pos[0] += y1 
             pupil_pos[1] += x1
     if concatenateBinaryImage and drawProcessedFrame:
         outimg = np.concatenate((outimg,thresh),axis=0)
     return outimg,(maxL[0] + x1,
                    maxL[1]+y1),(pupil_pos[1],
-                                pupil_pos[0]),(short_axis,
-                                               long_axis),(b,a,phi)
+                                pupil_pos[0]),(short_axis/2.,
+                                               long_axis/2.),(short_axis/2.,long_axis/2.,phi)
 
 class MPTracker(object):
     def __init__(self,parameters = None, drawProcessedFrame=False):
