@@ -258,7 +258,6 @@ class MPTrackerWindow(QWidget):
 
     def setDrawProcessed(self,value):
         self.tracker.drawProcessedFrame = value
-        print value
         self.processFrame(self.wFrame.value())
 
     def setBinThreshold(self,value):
@@ -446,7 +445,7 @@ class MPTrackerWindow(QWidget):
             else:
                 self.running = False
         else:
-            print e.key()
+            print(e.key())
 
     def runDetectionVerbose(self):
         self.running = True
@@ -454,7 +453,7 @@ class MPTrackerWindow(QWidget):
         if not len(self.parameters['points']) == 4:
             print('You did not specify the region..')
             return
-        for f in xrange(self.parameters['number_frames']):
+        for f in range(self.parameters['number_frames']):
             self.wFrame.setValue(f)
             if not self.running:
                 break

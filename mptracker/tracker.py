@@ -53,7 +53,7 @@ def extractPupilShapeAnalysis(img,params,
         crtmp = img[
             params['crApprox'][1][0]:params['crApprox'][1][1],
             params['crApprox'][0][0]:params['crApprox'][0][1]].copy()
-        crtmp = cv2.GaussianBlur(crtmp, (21, 21), 0)
+        crtmp = cv2.GaussianBlur(crtmp, (21, 21), 2)
         minV,maxV,minL,maxL = cv2.minMaxLoc(crtmp)
         # Testing the averaging
         maxL = (maxL[0]+params['crApprox'][0][0],

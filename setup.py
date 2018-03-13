@@ -17,7 +17,6 @@ setup(
     license = 'GPL',
     packages = ['mptracker'],
     install_requires=[
-          'mpi4py',
           'tifffile'
       ],
     entry_points = {
