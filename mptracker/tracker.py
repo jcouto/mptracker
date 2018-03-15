@@ -64,11 +64,11 @@ def extractPupilShapeAnalysis(img,params,
     outimg = cv2.cvtColor(outimg,cv2.COLOR_GRAY2RGB)
 
     # Contrast equalization
-    imo = clahe.apply(img)
     # Gaussian blurring
-    img = cv2.GaussianBlur(imo,
+    img = cv2.GaussianBlur(img,
                            (params['gaussian_filterSize'],
                             params['gaussian_filterSize']),0)
+    img = clahe.apply(img)
     # Morphological operations (Open)
     if params['open_kernelSize'] > 0:
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
@@ -136,7 +136,10 @@ def extractPupilShapeAnalysis(img,params,
         tmpe[:] = 0
         cv2.ellipse(tmpe,ellipse,255,-1)
         _,econt,_ = cv2.findContours(tmpe,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        score[e] = cv2.matchShapes(contours[i],econt[0],2,0.0)
+        if len(econt):
+            score[e] = cv2.matchShapes(contours[i],econt[0],2,0.0)
+        else:
+            score[e] = 1000**2
         # Remove candidates that are close to the corneal reflection center
         #if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
         #    dist = 1000
@@ -173,16 +176,18 @@ def extractPupilShapeAnalysis(img,params,
                                         [contours[idx]], -1, (0, 255, 0),1)
             cv2.ellipse(outimg,ellipse,(0,255,255),2,cv2.LINE_AA)
             # Absolute positions
-            pupil_pos = np.array(ellipse[0])
+            pupil_pos = np.array([ellipse[0][1],ellipse[0][0]])
             short_axis = ellipse[1][0]
             long_axis = ellipse[1][1]
             phi = ellipse[2]
-            pupil_pos[0] += y1 
-            pupil_pos[1] += x1
+            pupil_pos[0] += x1
+            pupil_pos[1] += y1 
     if concatenateBinaryImage and drawProcessedFrame:
         outimg = np.concatenate((outimg,thresh),axis=0)
-    return outimg,(maxL[0] + x1,
-                   maxL[1]+y1),pupil_pos,(short_axis,long_axis),(short_axis,long_axis,phi)
+    return (outimg,(maxL[0] + x1,
+                    maxL[1]+y1),pupil_pos,
+            (short_axis/2.,long_axis/2.),
+            (short_axis,long_axis,phi))
 
 class MPTracker(object):
     def __init__(self,parameters = None, drawProcessedFrame=False):
@@ -214,19 +219,22 @@ class MPTracker(object):
     def setROI(self, points):
         self.ROIpoints = points
     def set_clhe(self):
-        if (self.parameters['contrast_gridSize']>3):
+        if (self.parameters['contrast_gridSize']>1):
             self.clahe = cv2.createCLAHE(
                 clipLimit=self.parameters['contrast_clipLimit'],
                 tileGridSize=(self.parameters['contrast_gridSize'],
                               self.parameters['contrast_gridSize']))
         else:
-            class dummy(object):
+            class equalizeHist(object):
                 def __init__(self,par):
                     self.parameters = par
                     self.gamma = self.parameters['contrast_clipLimit']
                 def apply(self,img):
-                    return img
-            self.clahe = dummy(self.parameters)
+                    if self.gamma>1:
+                        return cv2.equalizeHist(img)
+                    else:
+                        return img
+            self.clahe = equalizeHist(self.parameters)
 
     def apply(self,img):
         res = extractPupilShapeAnalysis(img,
@@ -265,5 +273,5 @@ class MPTracker(object):
             img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
             img = cv2.drawContours(img,
                                    [s1], -1, (0, 255, 255),2)
-        return img,cr_position,pupil_position,max(pupil_radius),pupil_ellipse_par
+        return img,cr_position,pupil_position[::-1],max(pupil_radius),pupil_ellipse_par
 '''

@@ -117,7 +117,17 @@ class MPTrackerWindow(QWidget):
         paramGroup.setLayout(paramGrid)
         self.setLayout(grid)
         
+        self.wGaussianFilterSize = QSlider(Qt.Horizontal)
+        self.wGaussianFilterSize.setValue(self.parameters['gaussian_filterSize'])
+        self.wGaussianFilterSize.setMaximum(61)
+        self.wGaussianFilterSize.setMinimum(1)
+        self.wGaussianFilterSize.setSingleStep(2)
+        self.wGaussianFilterSizeLabel = QLabel('Gaussian filter [{0}]:'.format(
+            self.wGaussianFilterSize.value()))
+        self.wGaussianFilterSize.valueChanged.connect(self.setGaussianFilterSize)
+        paramGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
 
+        
         self.wContrastLim = QSlider(Qt.Horizontal)
         self.wContrastLim.setValue(self.parameters['contrast_clipLimit'])
         self.wContrastLim.setMinimum(0)
@@ -131,20 +141,12 @@ class MPTrackerWindow(QWidget):
         self.wContrastGridSize.setValue(self.parameters['contrast_gridSize'])
         self.wContrastGridSize.setMaximum(200)
         self.wContrastGridSize.setMinimum(1)
+        self.wContrastGridSize.setSingleStep(1)
         self.wContrastGridSizeLabel = QLabel('Contrast grid size [{0}]:'.format(
             self.wContrastGridSize.value()))
         self.wContrastGridSize.valueChanged.connect(self.setContrastGridSize)
         paramGrid.addRow(self.wContrastGridSizeLabel,self.wContrastGridSize)
 
-        self.wGaussianFilterSize = QSlider(Qt.Horizontal)
-        self.wGaussianFilterSize.setValue(self.parameters['gaussian_filterSize'])
-        self.wGaussianFilterSize.setMaximum(61)
-        self.wGaussianFilterSize.setMinimum(1)
-        self.wGaussianFilterSize.setSingleStep(2)
-        self.wGaussianFilterSizeLabel = QLabel('Gaussian filter [{0}]:'.format(
-            self.wGaussianFilterSize.value()))
-        self.wGaussianFilterSize.valueChanged.connect(self.setGaussianFilterSize)
-        paramGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
 
         self.wOpenKernelSize = QSlider(Qt.Horizontal)
         self.wOpenKernelSize.setValue(self.parameters['open_kernelSize'])
@@ -384,12 +386,16 @@ class MPTrackerWindow(QWidget):
             ax.plot([results['reference'][0][0],results['reference'][1][0]],
                     [results['reference'][0][1],results['reference'][1][1]],'-|y',
                     alpha=0.8,markersize=25,lw=1)
-            ax.plot(results['pupilPix'][ii,0],results['pupilPix'][ii,1],'r.',alpha=0.8)
-            ax.plot(results['crPix'][ii,0],results['crPix'][ii,1],'bo',alpha=0.8)            
-            s1 = ellipseToContour(results['pupilPix'][ii,:],results['ellipsePix'][ii,2]/2.,
-                                  results['ellipsePix'][ii,3],
-                                  results['ellipsePix'][ii,4],np.linspace(0,2*np.pi,200))
-
+            ax.plot(results['pupilPix'][ii,0],
+                    results['pupilPix'][ii,1],'r.',alpha=0.8)
+            ax.plot(results['crPix'][ii,0],
+                    results['crPix'][ii,1],'bo',alpha=0.8)            
+            s1 = ellipseToContour(results['pupilPix'][ii,:],
+                                  results['ellipsePix'][ii,2]/2,
+                                  results['ellipsePix'][ii,3]/2,
+                                  results['ellipsePix'][ii,4],
+                                  np.linspace(0,2*np.pi,200))
+            
             ax.plot(np.hstack([s1[:,0,1],s1[0,0,1]]),
                     np.hstack([s1[:,0,0],s1[0,0,0]]),'-',color='orange',alpha=0.8)
             ax.grid('off')
