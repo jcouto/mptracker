@@ -522,12 +522,13 @@ class MPTrackerWindow(QWidget):
             print('Can not save to file with no name...'+paramfile + ' Crack...')
             return
         import json
+        from .io import JsonEncoder
         paramfile = fname + '.json'
         with open(paramfile,'w') as f:
             tmp = dict(self.parameters)
             if 'crApprox' in tmp.keys():
                 tmp['crApprox'] = tmp['crApprox'].tolist()
-            json.dump(tmp,f,indent=4, sort_keys=True)
+            json.dump(tmp,f,indent=4, sort_keys=True,cls=JsonEncoder)
         print('Saved parameters [{0}].'.format(paramfile))
         
 def main():
