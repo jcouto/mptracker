@@ -66,13 +66,14 @@ def extractPupilShapeAnalysis(img,params,
         maxL = (0,0)
     outimg = img.copy()
     outimg = cv2.cvtColor(outimg,cv2.COLOR_GRAY2RGB)
-
+    img = adjust_gamma(img,params['gamma'])
     # Contrast equalization
     # Gaussian blurring
     img = cv2.GaussianBlur(img,
                            (params['gaussian_filterSize'],
                             params['gaussian_filterSize']),0)
     img = clahe.apply(img)
+    
     # Morphological operations (Open)
     if params['open_kernelSize'] > 0:
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
@@ -157,9 +158,9 @@ def extractPupilShapeAnalysis(img,params,
         #    dist = 1000
         score[e] *= (dist[e]**2)
         cv2.drawContours(mask,[contours[i]],0,255,-1)
-        mean_val = cv2.mean(thresh,mask = mask)[0]
-        if mean_val < 128:
-            dist[e] = 5000
+        #mean_val = cv2.mean(thresh,mask = mask)[0]
+        #if mean_val < 128:
+        #    dist[e] = 5000
 
         mask = cv2.drawContours(img,
                                 [contours[i]], -1, (70, 0, 150),1)
@@ -194,7 +195,7 @@ def extractPupilShapeAnalysis(img,params,
         # Estimate pupil diam and position
         ellipse = cv2.fitEllipse(pts) 
         # is it a circle-ish thing?
-        if (ellipse[1][1]/ellipse[1][0]) < 1.4:
+        if not ellipse[1][0] == 0 and (ellipse[1][1]/ellipse[1][0]) < params['roundIndex']:
             outimg = cv2.drawContours(outimg,
                                         [contours[idx]], -1, (0, 255, 0),1)
             cv2.ellipse(outimg,ellipse,(0,255,255),2,cv2.LINE_AA)
@@ -224,6 +225,8 @@ class MPTracker(object):
                 'threshold':40,
                 'minPupilArea': 0.01,
                 'maxPupilArea': 0.75,
+                'gamma': 1.0,
+                'roundIndex': 1.5,
                 'crApprox':None,
                 'sequentialCrMode':False,
                 'sequentialPupilMode':False,

@@ -119,14 +119,24 @@ class MPTrackerWindow(QWidget):
         
         paramGroup.setLayout(paramGrid)
         self.setLayout(grid)
+
+        self.wGamma = QSlider(Qt.Horizontal)
+        self.wGamma.setValue(self.parameters['gamma'])
+        self.wGamma.setMaximum(30)
+        self.wGamma.setMinimum(1)
+        self.wGamma.setSingleStep(5)
+        self.wGammaLabel = QLabel('Gamma [{0}]:'.format(
+            self.wGamma.value()))
+        self.wGamma.valueChanged.connect(self.setGamma)
+        paramGrid.addRow(self.wGammaLabel, self.wGamma)
         
         self.wGaussianFilterSize = QSlider(Qt.Horizontal)
-        self.wGaussianFilterSize.setValue(self.parameters['gaussian_filterSize'])
+        self.wGaussianFilterSize.setValue(self.parameters['gaussian_filterSize']*10)
         self.wGaussianFilterSize.setMaximum(61)
         self.wGaussianFilterSize.setMinimum(1)
         self.wGaussianFilterSize.setSingleStep(2)
         self.wGaussianFilterSizeLabel = QLabel('Gaussian filter [{0}]:'.format(
-            self.wGaussianFilterSize.value()))
+            self.wGaussianFilterSize.value()/10.))
         self.wGaussianFilterSize.valueChanged.connect(self.setGaussianFilterSize)
         paramGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
 
@@ -185,7 +195,13 @@ class MPTrackerWindow(QWidget):
         self.wEyeRadius.setMaximumWidth(40)
         self.wEyeRadius.textChanged.connect(self.setEyeRadius)
         paramGrid.addRow(QLabel('Approximate eye radius (mm):'),self.wEyeRadius)
-        
+
+        self.wRoundIndex = QTextEdit(str(self.parameters['roundIndex']))
+        self.wRoundIndex.setMaximumHeight(25)
+        self.wRoundIndex.setMaximumWidth(40)
+        self.wRoundIndex.textChanged.connect(self.setRoundIndex)
+        paramGrid.addRow(QLabel('Circle threshold:'),self.wRoundIndex)
+
         self.wNFrames = QLabel('')
         self.wNFrames.setMaximumHeight(25)
         self.wNFrames.setMaximumWidth(200)
@@ -284,6 +300,19 @@ class MPTrackerWindow(QWidget):
 
     def setCRTrack(self,value):
         self.parameters['crTrack'] = value
+        self.processFrame(self.wFrame.value())
+            
+    def setRoundIndex(self):
+        value = self.wRoundIndex.toPlainText()
+        try:
+            self.parameters['roundIndex'] = float(value)
+        except:
+            print('Need to insert a float in the radius.')
+        self.processFrame(self.wFrame.value())
+
+    def setGamma(self,value):
+        self.parameters['gamma'] = float(value)/10
+        self.wGammaLabel.setText('Gamma [{0}]:'.format(self.parameters['gamma']))
         self.processFrame(self.wFrame.value())
 
     def setSequentialCrMode(self,value):
