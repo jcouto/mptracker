@@ -19,6 +19,18 @@ def getCenterOfMass(contour):
     M = cv2.moments(contour)
     return (int(M["m10"] / M["m00"]),int(M["m01"] / M["m00"]))
 
+def cropImageWithCoords(npts,img):
+    if len(npts):
+        pts = np.array(npts).reshape((-1,1,2))
+        rect = cv2.boundingRect(pts)
+        (x1, y1, w, h) = rect
+    else:
+        x1,y1 = [0,0]
+        w,h = img.shape[:2]
+    x2 = x1 + w
+    y2 = y1 + h
+    return img[y1:y2,x1:x2],(x1,y1,w,h)
+    
 def extractPupilShapeAnalysis(img,params,
                               ROIpoints = [],
                               expectedDiam = None,
@@ -31,33 +43,25 @@ def extractPupilShapeAnalysis(img,params,
     w,h = img.shape
     roiArea = w*h
     if len(ROIpoints) >= 4:
-        pts = np.array(ROIpoints).reshape((-1,1,2))
-        rect = cv2.boundingRect(pts)
-        (x1, y1, w, h) = rect
-        x2 = x1 + w
-        y2 = y1 + h
+        img,(x1, y1, w, h) = cropImageWithCoords(ROIpoints,img)
         roiArea = w*h
-        img = img[y1:y2,x1:x2]
         if params['crApprox'] is None:
             try:
                 mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(img,(21,21),100))
                 minV,maxV,minL,maxL = cv2.minMaxLoc(cv2.GaussianBlur(mag,(21,21),100))
-                params['crApprox'] = np.array([[maxL[0]-int(w*0.05),
-                                                maxL[0]+int(w*0.05)],
-                                               [maxL[1]-int(h*0.05),
-                                                maxL[1]+int(h*0.05)]])
+                params['crApprox'] = [maxL[0]+x1,maxL[1]+y1]
             except Exception as e:
                  print(e)
-    d2,d1 = img.shape
     if not params['crApprox'] is None:
+        crA,crB =[int(w*0.05),int(h*0.05)]
         crtmp = img[
-            params['crApprox'][1][0]:params['crApprox'][1][1],
-            params['crApprox'][0][0]:params['crApprox'][0][1]].copy()
+            params['crApprox'][1] - y1 - crB:params['crApprox'][1] - y1 + crB,
+            params['crApprox'][0] - x1 - crA:params['crApprox'][0]  - x1 + crA].copy()
         crtmp = cv2.GaussianBlur(crtmp, (21, 21), 2)
         minV,maxV,minL,maxL = cv2.minMaxLoc(crtmp)
         # Testing the averaging
-        maxL = (maxL[0]+params['crApprox'][0][0],
-                maxL[1]+params['crApprox'][1][0])
+        maxL = (maxL[0] + params['crApprox'][0] - x1 - crA,
+                maxL[1] + params['crApprox'][1] - y1 - crB)
     else:
         maxL = (0,0)
     outimg = img.copy()
@@ -84,10 +88,10 @@ def extractPupilShapeAnalysis(img,params,
     # Threshold image
     if params['invertThreshold']:
         if not params['crApprox'] is None:
-            tmp = img[params['crApprox'][1][0]:params['crApprox'][1][1],
-                      params['crApprox'][0][0]:params['crApprox'][0][1]]
-            img[params['crApprox'][1][0]:params['crApprox'][1][1],
-                params['crApprox'][0][0]:params['crApprox'][0][1]] = (tmp.astype(
+            tmp = img[params['crApprox'][1] - y1 - crB:params['crApprox'][1] - y1 + crB,
+                      params['crApprox'][0] - x1 - crA:params['crApprox'][0]  - x1 + crA]
+            img[params['crApprox'][1] - y1 - crB:params['crApprox'][1] - y1 + crB,
+                params['crApprox'][0] - x1 - crA:params['crApprox'][0]  - x1 + crA] = (tmp.astype(
                     np.float32) * (1. - crtmp/float(maxV))).astype(img.dtype)
         ret,thresh = cv2.threshold(img,params['threshold'],255,0)
         thresh = cv2.bitwise_not(thresh)
@@ -111,7 +115,7 @@ def extractPupilShapeAnalysis(img,params,
     maxArea = roiArea*params['maxPupilArea']
     circleIdx = np.where((area > minArea) & (area < maxArea))[0]
 
-    #font = cv2.FONT_HERSHEY_SIMPLEX
+    font = cv2.FONT_HERSHEY_SIMPLEX
     #for i,c in enumerate(contours):
     #    try:
     #        cX,cY = self.getCenterOfMass(c)
@@ -120,13 +124,21 @@ def extractPupilShapeAnalysis(img,params,
     #                          (cX,cY), font, 0.5,(0,0,255),2,cv2.LINE_AA)
     #    except:
     #        print(c)
-    score = np.ones_like(circleIdx,dtype=float)
+    score = np.ones_like(circleIdx,dtype=np.float64)
+    dist = np.ones_like(circleIdx,dtype=np.float64)
     # Try to fit the contours
     mask = np.zeros(thresh.shape,np.uint8)
     tmpe = np.zeros_like(outimg[:,:,0])
+    d1,d2 = img.shape
+    if not 'pupilApprox' in params.keys() or params['pupilApprox'] is None:
+        print('resetting pupil')
+        params['pupilApprox'] = (d2/2+x1,d1/2 + y1)
+    
     for e,i in enumerate(circleIdx):
         cX,cY = getCenterOfMass(contours[i])
-        dist = np.sqrt((cX - d1/2)**2 + (cY - d2/2)**2)
+        #outimg = cv2.putText(outimg,'{0},{1}'.format(params['pupilApprox'][0] - x1,params['pupilApprox'][1] - y1),
+        #                     (int(params['pupilApprox'][0])- x1,int(params['pupilApprox'][1])-y1), font, 0.5,(0,255,255),1,cv2.LINE_AA)
+        dist[e] = np.sqrt((cX - (params['pupilApprox'][0] - x1))**2 + (cY - (params['pupilApprox'][1] - y1))**2)
         pts = contours[i][:,0,:]
         distM = np.sqrt((pts[:,0] - cX)**2 + (pts[:,1] - cY)**2)
         mm,ss = (np.median(distM),np.std(distM))
@@ -143,22 +155,33 @@ def extractPupilShapeAnalysis(img,params,
         # Remove candidates that are close to the corneal reflection center
         #if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
         #    dist = 1000
-        score[e] *= (dist**2)
+        score[e] *= (dist[e]**2)
         cv2.drawContours(mask,[contours[i]],0,255,-1)
-        mean_val = cv2.mean(thresh,mask = mask)
+        mean_val = cv2.mean(thresh,mask = mask)[0]
+        if mean_val < 128:
+            dist[e] = 5000
+
         mask = cv2.drawContours(img,
                                 [contours[i]], -1, (70, 0, 150),1)
         # Make it easier to be the pupil if close to the expected location
         if drawProcessedFrame:
             outimg = cv2.drawContours(outimg,
                                       [contours[i]], -1, (70, 0, 150),1)
+            #outimg = cv2.putText(outimg,'{0}'.format(dist[e]),
+            #                  (cX,cY), font, 0.5,(0,0,255),1,cv2.LINE_AA)
+
         # Text?
     # Get the actual estimate for the contour with best score
-    pupil_pos = [0,0]
+    pupil_pos = [np.nan,np.nan]
     (long_axis,short_axis) = [np.nan,np.nan]
-    (b,a,phi) = (np.nan,np.nan,0)
+    (b,a,phi) = (np.nan,np.nan,np.nan)
     thresh = cv2.cvtColor(thresh,cv2.COLOR_GRAY2RGB)
-    if len(score):
+    score = np.array(score)
+    if params['sequentialPupilMode']:
+        idx = dist<w*0.25
+    else:
+        idx = range(len(score))
+    if len(score[idx]):
         # Select the one with the best score
         idx = circleIdx[np.argmin(score)]
         # discard outliers (points that are far from the median)
@@ -176,7 +199,7 @@ def extractPupilShapeAnalysis(img,params,
                                         [contours[idx]], -1, (0, 255, 0),1)
             cv2.ellipse(outimg,ellipse,(0,255,255),2,cv2.LINE_AA)
             # Absolute positions
-            pupil_pos = np.array([ellipse[0][1],ellipse[0][0]])
+            pupil_pos = np.array([ellipse[0][0],ellipse[0][1]])
             short_axis = ellipse[1][0]
             long_axis = ellipse[1][1]
             phi = ellipse[2]
@@ -185,7 +208,7 @@ def extractPupilShapeAnalysis(img,params,
     if concatenateBinaryImage and drawProcessedFrame:
         outimg = np.concatenate((outimg,thresh),axis=0)
     return (outimg,(maxL[0] + x1,
-                    maxL[1]+y1),pupil_pos,
+                    maxL[1] + y1),pupil_pos,
             (short_axis/2.,long_axis/2.),
             (short_axis,long_axis,phi))
 
@@ -195,13 +218,15 @@ class MPTracker(object):
             self.parameters = {
                 'contrast_clipLimit':10,
                 'contrast_gridSize':5,
-                'gaussian_filterSize':5,
+                'gaussian_filterSize':3,
                 'open_kernelSize':0,
-                'close_kernelSize':4,
+                'close_kernelSize':2,
                 'threshold':40,
                 'minPupilArea': 0.01,
                 'maxPupilArea': 0.75,
                 'crApprox':None,
+                'sequentialCrMode':False,
+                'sequentialPupilMode':False,
                 'points':[],
                 'invertThreshold':False,
                 'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
@@ -243,6 +268,11 @@ class MPTracker(object):
                                         clahe = self.clahe,
                                         concatenateBinaryImage = self.concatenateBinaryImage,
                                         drawProcessedFrame=self.drawProcessedFrame)
+        if self.parameters['sequentialCrMode']:
+            self.parameters['crApprox'] = res[1]
+        if self.parameters['sequentialPupilMode']:
+            if not np.isnan(res[2][0]):
+                self.parameters['pupilApprox'] = res[2]
         self.img = res[0]
         return res[1:]
 

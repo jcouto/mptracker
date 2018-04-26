@@ -92,6 +92,8 @@ class MPTrackerWindow(QWidget):
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
         self.parameters['crTrack'] = True
+        self.parameters['sequentialCRMode'] = False
+        self.parameters['sequentialPupilMode'] = False
         self.resultfile = resfile
         self.results = {}
         self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
@@ -103,7 +105,8 @@ class MPTrackerWindow(QWidget):
         self.results['crPix'] = np.empty((self.parameters['number_frames'],2),
                                          dtype = np.float32)
         self.results['crPix'].fill(np.nan)
-
+        self.startFrame = 0
+        #self.endFrame = self.imgstack.nFrames
         self.initUI()
         
     def initUI(self):
@@ -201,10 +204,25 @@ class MPTrackerWindow(QWidget):
         self.wDisableCRtrack.stateChanged.connect(self.setCRTrack)
         paramGrid.addRow(QLabel('Track corneal reflection:'),self.wDisableCRtrack)
 
+        self.wSequentialCrMode = QCheckBox()
+        self.wSequentialCrMode.setChecked(self.parameters['sequentialCrMode'])
+        self.wSequentialCrMode.stateChanged.connect(self.setSequentialCrMode)
+        paramGrid.addRow(QLabel('Sequential refraction mode:'),self.wSequentialCrMode)
+
+        self.wSequentialPupilMode = QCheckBox()
+        self.wSequentialPupilMode.setChecked(self.parameters['sequentialPupilMode'])
+        self.wSequentialPupilMode.stateChanged.connect(self.setSequentialPupilMode)
+        paramGrid.addRow(QLabel('Sequential pupil mode:'),self.wSequentialPupilMode)
+
+        self.wResetSequentialPupil = QPushButton('Reset sequential pupil')
+        self.wResetSequentialPupil.clicked.connect(self.resetSequentialPupil)
+        paramGrid.addRow(self.wResetSequentialPupil)
+
         self.wDisplayBinaryImage = QCheckBox()
         self.wDisplayBinaryImage.setChecked(False)
         self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
         paramGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
+
         self.saveParameters = QPushButton('Save tracker parameters')
         self.saveParameters.clicked.connect(self.saveTrackerParameters)
         paramGrid.addRow(self.saveParameters)
@@ -222,6 +240,8 @@ class MPTrackerWindow(QWidget):
         self.wFrame.setMaximum(self.imgstack.nFrames-1)
         self.wFrame.setMinimum(0)
         self.wFrame.setValue(0)
+        self.wFrame.mouseDoubleClickEvent = self.setStartFrame
+
         grid.addWidget(self.wFrame,0,2,1,4)
         # images and plots
         img = self.imgstack.get(int(self.wFrame.value()))
@@ -238,12 +258,20 @@ class MPTrackerWindow(QWidget):
         self.updateGUI()
         self.running = False
 
+    def setStartFrame(self,event):
+        self.startFrame = int(self.wFrame.value())
+        print('StartFrame set.')
+        
     def clearPoints(self,event):
         self.tracker.ROIpoints = []
+        self.parameters['points'] = []
         self.putPoints()
+        self.processFrame(self.wFrame.value())
+
         
     def putPoints(self):
         points = self.tracker.ROIpoints
+        self.tracker.parameters['pupilApprox'] = None
         self.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
         
     def updateTrackerOutputBinaryImage(self,state):
@@ -257,6 +285,12 @@ class MPTrackerWindow(QWidget):
     def setCRTrack(self,value):
         self.parameters['crTrack'] = value
         self.processFrame(self.wFrame.value())
+
+    def setSequentialCrMode(self,value):
+        self.parameters['sequentialCrMode'] = value
+
+    def setSequentialPupilMode(self,value):
+        self.parameters['sequentialPupilMode'] = value
 
     def setDrawProcessed(self,value):
         self.tracker.drawProcessedFrame = value
@@ -296,7 +330,10 @@ class MPTrackerWindow(QWidget):
         self.parameters['open_kernelSize'] = int(value)
         self.wOpenKernelSizeLabel.setText('Morph open size [{0}]:'.format(int(value)))
         self.processFrame(self.wFrame.value())
-        
+
+    def resetSequentialPupil(self):
+        self.tracker.parameters['pupilApprox'] = None
+
     def setEyeRadius(self):
         value = self.wEyeRadius.toPlainText()
         try:
@@ -306,16 +343,23 @@ class MPTrackerWindow(QWidget):
             print('Need to insert a float in the radius.')
     def selectPoints(self,event):
         pt = self.view.mapToScene(event.pos())
-        x = pt.x()
-        y = pt.y()
-        self.parameters['points'].append([int(round(x)),int(round(y))])
-        img = self.imgstack.get(int(self.wFrame.value()))
-        height,width = img.shape
-        self.tracker.setROI(self.parameters['points'])
-        cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
-        self.setImage(self.tracker.img)
-        self.putPoints()
-        
+        if event.button() == 1:
+            x = pt.x()
+            y = pt.y()
+            self.parameters['points'].append([int(round(x)),int(round(y))])
+            img = self.imgstack.get(int(self.wFrame.value()))
+            height,width = img.shape
+            self.tracker.setROI(self.parameters['points'])
+            self.putPoints()
+        elif event.button() == 2:
+            x = pt.x()
+            y = pt.y()
+            from .tracker import cropImageWithCoords
+            img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints, self.tracker.img)
+            pts = [int(round(x))+x1,int(round(y))+y1]
+            self.tracker.parameters['crApprox'] = pts
+        self.processFrame(self.wFrame.value())
+
     def setImage(self,image):
         self.scene.clear()
         frame = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -386,10 +430,10 @@ class MPTrackerWindow(QWidget):
             ax.plot([results['reference'][0][0],results['reference'][1][0]],
                     [results['reference'][0][1],results['reference'][1][1]],'-|y',
                     alpha=0.8,markersize=25,lw=1)
-            ax.plot(results['pupilPix'][ii,0],
-                    results['pupilPix'][ii,1],'r.',alpha=0.8)
-            ax.plot(results['crPix'][ii,0],
-                    results['crPix'][ii,1],'bo',alpha=0.8)            
+            ax.plot(results['pupilPix'][ii,1],
+                    results['pupilPix'][ii,0],'r.',alpha=0.8)
+            ax.plot(results['crPix'][ii,1],
+                    results['crPix'][ii,0],'bo',alpha=0.8)            
             s1 = ellipseToContour(results['pupilPix'][ii,:],
                                   results['ellipsePix'][ii,2]/2,
                                   results['ellipsePix'][ii,3]/2,
@@ -459,7 +503,7 @@ class MPTrackerWindow(QWidget):
         if not len(self.parameters['points']) == 4:
             print('You did not specify the region..')
             return
-        for f in range(self.parameters['number_frames']):
+        for f in range(self.startFrame,self.parameters['number_frames']):
             self.wFrame.setValue(f)
             if not self.running:
                 break

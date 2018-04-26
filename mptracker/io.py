@@ -12,7 +12,7 @@ import os
 from os.path import join as pjoin
 import numpy as np
 from glob import glob
-from tifffile import TiffFile
+from tifffile import TiffFile,imread
 from pims import NorpixSeq
 import h5py as h5
 from tempfile import mkdtemp
@@ -136,7 +136,8 @@ class TiffFileSequence(object):
         self.framesPerFile = np.array(framesPerFile, dtype=np.int64)
         self.framesOffset = np.hstack([0,np.cumsum(self.framesPerFile[:-1])])
         self.nFrames = np.sum(framesPerFile)
-
+        self.curimg = None
+        self.curidx = -1
     def getFrameIndex(self,frame):
         '''Computes the frame index from multipage tiff files.'''
         fileidx = np.where(self.framesOffset <= frame)[0][-1]
@@ -157,11 +158,15 @@ class TiffFileSequence(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
-        if self.files[fileidx] is None:
-            self.files[fileidx] = TiffFile(self.filenames[fileidx])
-            if not self.files[fileidx-1] is None:
-                self.files[fileidx-1].close()
-        img = self.files[fileidx].asarray(frameidx)
+        #if self.files[fileidx] is None:
+        #    self.files[fileidx] = TiffFile(self.filenames[fileidx])
+        #    if not self.files[fileidx-1] is None:
+        #        self.files[fileidx-1].close()
+        #img = self.files[fileidx].asarray(frameidx)
+        if not self.curidx == fileidx:
+            self.curimg = imread(self.filenames[fileidx])
+            self.curidx = fileidx
+        img = self.curimg[frameidx]
         if img.dtype == np.uint16:
             img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0))
         return img
