@@ -459,10 +459,10 @@ class MPTrackerWindow(QWidget):
             ax.plot([results['reference'][0][0],results['reference'][1][0]],
                     [results['reference'][0][1],results['reference'][1][1]],'-|y',
                     alpha=0.8,markersize=25,lw=1)
-            ax.plot(results['pupilPix'][ii,1],
-                    results['pupilPix'][ii,0],'r.',alpha=0.8)
-            ax.plot(results['crPix'][ii,1],
-                    results['crPix'][ii,0],'bo',alpha=0.8)            
+            ax.plot(results['pupilPix'][ii,0],
+                    results['pupilPix'][ii,1],'r.',alpha=0.8)
+            ax.plot(results['crPix'][ii,0],
+                    results['crPix'][ii,1],'bo',alpha=0.8)            
             s1 = ellipseToContour(results['pupilPix'][ii,:],
                                   results['ellipsePix'][ii,2]/2,
                                   results['ellipsePix'][ii,3]/2,

@@ -158,15 +158,17 @@ class TiffFileSequence(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
-        #if self.files[fileidx] is None:
-        #    self.files[fileidx] = TiffFile(self.filenames[fileidx])
-        #    if not self.files[fileidx-1] is None:
-        #        self.files[fileidx-1].close()
-        #img = self.files[fileidx].asarray(frameidx)
-        if not self.curidx == fileidx:
-            self.curimg = imread(self.filenames[fileidx])
-            self.curidx = fileidx
-        img = self.curimg[frameidx]
+        if len(self.filenames) > 10: # do memmap
+            if self.files[fileidx] is None:
+                self.files[fileidx] = TiffFile(self.filenames[fileidx])
+            if not self.files[fileidx-1] is None:
+                self.files[fileidx-1].close()
+            img = self.files[fileidx].asarray(frameidx)
+        else:
+            if not self.curidx == fileidx:
+                self.curimg = imread(self.filenames[fileidx])
+                self.curidx = fileidx
+            img = self.curimg[frameidx]
         if img.dtype == np.uint16:
             img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0))
         return img
