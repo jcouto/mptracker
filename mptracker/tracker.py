@@ -53,7 +53,7 @@ def extractPupilShapeAnalysis(img,params,
             except Exception as e:
                  print(e)
     if not params['crApprox'] is None:
-        crA,crB =[int(w*0.05),int(h*0.05)]
+        crA,crB =[int(w*params['crFrac']),int(h*params['crFrac'])]
         crtmp = img[
             params['crApprox'][1] - y1 - crB:params['crApprox'][1] - y1 + crB,
             params['crApprox'][0] - x1 - crA:params['crApprox'][0]  - x1 + crA].copy()
@@ -144,7 +144,6 @@ def extractPupilShapeAnalysis(img,params,
         #mm,ss = (np.median(distM),np.std(distM))
         #ptsIdx = (distM<mm+ss*1.3) & (distM>mm-ss*1.3)
         #pts = pts[ptsIdx,:]
-        if len(pts) > 5:
         if len(pts) > 6: 
             ellipse = cv2.fitEllipse(pts) 
             tmpe[:] = 0
@@ -220,9 +219,7 @@ def extractPupilShapeAnalysis(img,params,
             (short_axis,long_axis,phi))
 
 class MPTracker(object):
-    def __init__(self,parameters = None, drawProcessedFrame=False):
-        if parameters is None:
-            self.parameters = {
+    defaults = {
                 'contrast_clipLimit':10,
                 'contrast_gridSize':5,
                 'gaussian_filterSize':3,
@@ -234,6 +231,7 @@ class MPTracker(object):
                 'gamma': 1.0,
                 'roundIndex': 1.5,
                 'crApprox':None,
+                'crFrac':0.2,
                 'sequentialCrMode':False,
                 'sequentialPupilMode':False,
                 'points':[],
@@ -241,8 +239,14 @@ class MPTracker(object):
                 'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
                 'number_frames':0,
             }
+    def __init__(self,parameters = None, drawProcessedFrame=False):
+        if parameters is None:
+            self.parameters = self.defaults
         else:
             self.parameters = parameters
+        for k in self.defaults.keys():
+            if not k in self.parameters.keys():
+                self.parameters[k] = self.defaults[k]
         #print(self.parameters)
         self.drawProcessedFrame = drawProcessedFrame
         self.set_clhe()
