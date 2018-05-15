@@ -98,12 +98,12 @@ class MPTrackerWindow(QWidget):
         self.results = {}
         self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
                                            dtype = np.float32)
-        self.results['ellipsePix'].fill(np.nan)
         self.results['pupilPix'] = np.empty((self.parameters['number_frames'],2),
                                             dtype=np.float32)
-        self.results['pupilPix'].fill(np.nan)
         self.results['crPix'] = np.empty((self.parameters['number_frames'],2),
                                          dtype = np.float32)
+        self.results['ellipsePix'].fill(np.nan)
+        self.results['pupilPix'].fill(np.nan)
         self.results['crPix'].fill(np.nan)
         self.startFrame = 0
         #self.endFrame = self.imgstack.nFrames
@@ -114,9 +114,7 @@ class MPTrackerWindow(QWidget):
         paramGrid = QFormLayout()
         paramGroup = QGroupBox()
         
-        
         paramGroup.setTitle("Eye tracking parameters")
-        
         paramGroup.setLayout(paramGrid)
         self.setLayout(grid)
 
@@ -440,9 +438,9 @@ class MPTrackerWindow(QWidget):
         self.app.processEvents()
         
     def keyPressEvent(self, e):
-        if e.key() == Qt.Key_Escape:
+        if e.key() == Qt.Key_Escape: # ESC
             self.close()
-        elif e.key() == 80:
+        elif e.key() == 80: # P
             results = self.results.copy()
             clahe = cv2.createCLAHE(7,(10,10))
             ii = 100
@@ -518,26 +516,48 @@ class MPTrackerWindow(QWidget):
 #            axaz.set_ylim([0,3.7])
             axel.set_xlabel('Frame number',color='black')
             plt.show()
-        elif e.key() == 82:
+        elif e.key() == 82: # R
             if not self.running:
                 self.runDetectionVerbose()
+            else:
+                self.running = False
+        elif e.key() == 70: # F
+            if not self.running:
+                self.runDetectionVerbose(saveOutput = True)
             else:
                 self.running = False
         else:
             print(e.key())
 
-    def runDetectionVerbose(self):
+    def runDetectionVerbose(self,saveOutput = False):
         self.running = True
         ts = time.time()
         if not len(self.parameters['points']) == 4:
-            print('You did not specify the region..')
+            print('You did not specify a region... Please select 4 points around the eye.')
             return
-        for f in range(self.startFrame,self.parameters['number_frames']):
-            self.wFrame.setValue(f)
-            if not self.running:
-                break
         self.results['reference'] = [self.parameters['points'][0],self.parameters['points'][2]]
-        print('Done {0} frames in {1:3.1f} min'.format(f,
+        self.results['ellipsePix'].fill(np.nan)
+        self.results['pupilPix'].fill(np.nan)
+        self.results['crPix'].fill(np.nan)
+        if saveOutput:
+            # get a filename (tiff to save output)...
+            saveOutputFile = QFileDialog().getSaveFileName()
+            if type(saveOutputFile) is tuple:
+                saveOutputFile = saveOutputFile[0]
+            from tifffile import TiffWriter
+            with TiffWriter(saveOutputFile) as fd:
+                for f in range(self.startFrame,self.parameters['number_frames']):
+                    self.wFrame.setValue(f)
+                    fd.save(self.tracker.img)
+                    if not self.running:
+                        break
+        else:
+            # Just run it.
+            for f in range(self.startFrame,self.parameters['number_frames']):
+                self.wFrame.setValue(f)
+                if not self.running:
+                    break
+        print('Done {0} frames in {1:3.1f} min'.format(f-self.startFrame,
                                                        (time.time()-ts)/60.))
         if self.resultfile is None:
             try:

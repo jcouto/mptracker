@@ -132,7 +132,6 @@ def extractPupilShapeAnalysis(img,params,
     tmpe = np.zeros_like(outimg[:,:,0])
     d1,d2 = img.shape
     if not 'pupilApprox' in params.keys() or params['pupilApprox'] is None:
-        print('resetting pupil')
         params['pupilApprox'] = (d2/2+x1,d1/2 + y1)
     
     for e,i in enumerate(circleIdx):
@@ -143,12 +142,15 @@ def extractPupilShapeAnalysis(img,params,
         pts = contours[i][:,0,:]
         distM = np.sqrt((pts[:,0] - cX)**2 + (pts[:,1] - cY)**2)
         mm,ss = (np.median(distM),np.std(distM))
-        ptsIdx = (distM<mm+ss*1.3) & (distM>mm-ss*1.3)
-        pts = pts[ptsIdx,:]
-        ellipse = cv2.fitEllipse(pts) 
-        tmpe[:] = 0
-        cv2.ellipse(tmpe,ellipse,255,-1)
-        _,econt,_ = cv2.findContours(tmpe,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        #ptsIdx = (distM<mm+ss*1.3) & (distM>mm-ss*1.3)
+        #pts = pts[ptsIdx,:]
+        if len(pts) > 6: 
+            ellipse = cv2.fitEllipse(pts) 
+            tmpe[:] = 0
+            cv2.ellipse(tmpe,ellipse,255,-1)
+            _,econt,_ = cv2.findContours(tmpe,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        else:
+            econt = []
         if len(econt):
             score[e] = cv2.matchShapes(contours[i],econt[0],2,0.0)
         else:
@@ -193,12 +195,15 @@ def extractPupilShapeAnalysis(img,params,
         ptsIdx = (dist<mm+ss*1.) & (dist>mm-ss*1.)
         pts = pts[ptsIdx,:]
         # Estimate pupil diam and position
-        ellipse = cv2.fitEllipse(pts) 
+        if len(pts) > 6:
+            ellipse = cv2.fitEllipse(pts)
+        else:
+            ellipse = [[0,0],[0,0]]
         # is it a circle-ish thing?
         if not ellipse[1][0] == 0 and (ellipse[1][1]/ellipse[1][0]) < params['roundIndex']:
             outimg = cv2.drawContours(outimg,
                                         [contours[idx]], -1, (0, 255, 0),1)
-            cv2.ellipse(outimg,ellipse,(0,255,255),2,cv2.LINE_AA)
+            cv2.ellipse(outimg,ellipse,(10,250,250),2,cv2.LINE_AA)
             # Absolute positions
             pupil_pos = np.array([ellipse[0][0],ellipse[0][1]])
             short_axis = ellipse[1][0]
@@ -237,7 +242,7 @@ class MPTracker(object):
             }
         else:
             self.parameters = parameters
-        print(self.parameters)
+        #print(self.parameters)
         self.drawProcessedFrame = drawProcessedFrame
         self.set_clhe()
         self.ROIpoints = []
