@@ -289,6 +289,9 @@ class MPTracker(object):
         self.img = res[0]
         return res[1:]
 
+    def getAugmented(self,img,epar):
+        augmented = np.stack([img,pupil_img,np.zeros_like(img)])
+        
 
 '''    def applyStarburst(self,img):
         img = self.clahe.apply(img.astype('uint8'))

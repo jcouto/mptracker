@@ -526,6 +526,11 @@ class MPTrackerWindow(QWidget):
                 self.runDetectionVerbose(saveOutput = True)
             else:
                 self.running = False
+        elif e.key() == 65: # A
+            # add to keras model
+            if self.unet_data is None:
+                self.unet_data = []
+            self.tracker.getAugmented()
         else:
             print(e.key())
 
