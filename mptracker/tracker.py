@@ -289,8 +289,19 @@ class MPTracker(object):
         self.img = res[0]
         return res[1:]
 
-    def getAugmented(self,img,epar):
-        augmented = np.stack([img,pupil_img,np.zeros_like(img)])
+    def getAugmented(self,img,equalize = False):
+        (_,pos,M,angles) = self.apply(img)
+        
+        # Draw the pupil on the image.
+        pupil_img = (getEllipseMask(img.shape,pos,M,angles) * 0.5).astype(np.uint8)
+        tt = (img*0.5).astype(np.uint8)
+        tdat = np.stack([tt,tt+pupil_img,tt]).transpose(1,2,0)
+        if equalize:
+            clahe = cv2.createCLAHE(clipLimit=20.0, tileGridSize=(11,11))
+            for i in range(3):
+                tdat[:,:,i] = cv2.equalizeHist(tdat[:,:,i])
+        return tdat
+
         
 
 '''    def applyStarburst(self,img):

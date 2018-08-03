@@ -89,6 +89,7 @@ class MPTrackerWindow(QWidget):
         else:
             print('Unknown extension for:'+target)
         self.tracker = MPTracker(parameters = params, drawProcessedFrame = True)
+        self.unet_data = None
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
         self.parameters['crTrack'] = True

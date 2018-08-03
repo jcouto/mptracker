@@ -85,6 +85,12 @@ def convertPixelToEyeCoords(pupilPix,
     return np.rad2deg(az),np.rad2deg(el),np.rad2deg(theta)
 
 
+def getEllipseMask(shape,ePos,eAxes,eAngles,dtype='uint8'):
+    tmp = np.zeros(shape = shape,dtype=dtype)
+    return cv2.ellipse(tmp,(int(ePos[0]),int(ePos[1])),(int(eAxes[0]),int(eAxes[1])),
+                       eAngles[0],0,360,
+                       255,-1)
+
 def medfilt(x, k = 5):
     """Apply a length-k median filter to a 1D array x.
     Boundaries are extended by repeating endpoints.
