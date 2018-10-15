@@ -163,6 +163,7 @@ class TiffFileSequence(object):
                 self.files[fileidx] = TiffFile(self.filenames[fileidx])
             if not self.files[fileidx-1] is None:
                 self.files[fileidx-1].close()
+                self.files[fileidx-1] = None
             img = self.files[fileidx].asarray(frameidx)
         else:
             if not self.curidx == fileidx:

@@ -423,9 +423,10 @@ class MPTrackerWindow(QWidget):
         f = int(val)
         try:
             img = self.imgstack.get(f)
-        except:
+        except Exception as err:
             img = None
             print("Failed loading frame {0}".format(f))
+            print(err)
         if not img is None:
             cr_pos,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
             self.results['ellipsePix'][f,:2] = pupil_radius
