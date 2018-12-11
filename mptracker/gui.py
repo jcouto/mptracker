@@ -26,6 +26,9 @@ try:
                                  QGraphicsItem,
                                  QGraphicsLineItem,
                                  QGroupBox,
+                                 QDockWidget,
+                                 QVBoxLayout,
+                                 QMainWindow,
                                  QTableWidget,
                                  QFileDialog)
     from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor
@@ -58,10 +61,12 @@ plt.matplotlib.style.use('ggplot')
 from .utils import *
 from .io import *
 from .tracker import *
+from .widgets import MptrackerParameters,MptrackerDisplay
+from .tracker import cropImageWithCoords
 
 description = ''' GUI to define parameters and track the pupil.'''
 
-class MPTrackerWindow(QWidget):
+class MPTrackerWindow(QMainWindow):
     def __init__(self,targetpath = None,
                  resfile = None, params = None,
                  app = None, usetmp = False):
@@ -89,6 +94,7 @@ class MPTrackerWindow(QWidget):
         else:
             print('Unknown extension for:'+target)
         self.tracker = MPTracker(parameters = params, drawProcessedFrame = True)
+        self.tracker.apply(self.imgstack.get(0))
         self.unet_data = None
         self.parameters = self.tracker.parameters
         self.parameters['number_frames'] = self.imgstack.nFrames
@@ -106,171 +112,74 @@ class MPTrackerWindow(QWidget):
         self.results['ellipsePix'].fill(np.nan)
         self.results['pupilPix'].fill(np.nan)
         self.results['crPix'].fill(np.nan)
+        if not len(self.tracker.ROIpoints) >= 4:
+            self.cropPoints = []
+        else:
+            img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints,
+                                                     self.tracker.img)
+            self.cropPoints = [x1,x1+w,y1,y1+h]
+
         self.startFrame = 0
         #self.endFrame = self.imgstack.nFrames
         self.initUI()
         
     def initUI(self):
-        grid = QGridLayout()
-        paramGrid = QFormLayout()
-        paramGroup = QGroupBox()
+
+        # Menu
+#        bar = self.menuBar()
+#        editmenu = bar.addMenu("Experiment")
+#        editmenu.addAction("New")
+#        editmenu.triggered[QAction].connect(self.experimentMenuTrigger)
+ #       self.setWindowTitle("LabCams")
+        self.tabs = []
+        self.tabs.append(QDockWidget("Parameters",self))
+        layout = QVBoxLayout()
+        self.paramwidget = MptrackerParameters(self.tracker)
+        self.tabs[-1].setWidget(self.paramwidget)
+        self.tabs[-1].setFloating(False)
+        self.addDockWidget(
+            Qt.RightDockWidgetArea and Qt.TopDockWidgetArea,
+            self.tabs[-1])
+        self.tabs.append(QDockWidget("Frame",self))
+        self.display = MptrackerDisplay(self.tracker.img)
+        self.tabs[-1].setWidget(self.display)
+        self.tabs[-1].setFloating(False)
+        self.addDockWidget(
+            Qt.RightDockWidgetArea and Qt.TopDockWidgetArea,
+            self.tabs[-1])
+
+#        grid = QGridLayout()
+
+#        self.wNFrames = QLabel('')
+#        self.wNFrames.setMaximumHeight(25)
+#        self.wNFrames.setMaximumWidth(200)
+#        paramGrid.addRow(QLabel('Number of frames:'),self.wNFrames)
         
-        paramGroup.setTitle("Eye tracking parameters")
-        paramGroup.setLayout(paramGrid)
-        self.setLayout(grid)
+#        self.wFrame = QSlider(Qt.Horizontal)
+#        self.wFrame.valueChanged.connect(self.processFrame)
+#        self.wFrame.setMaximum(self.imgstack.nFrames-1)
+#        self.wFrame.setMinimum(0)
+#        self.wFrame.setValue(0)
+ #       self.wFrame.mouseDoubleClickEvent = self.setStartFrame
 
-        self.wGamma = QSlider(Qt.Horizontal)
-        self.wGamma.setValue(self.parameters['gamma'])
-        self.wGamma.setMaximum(30)
-        self.wGamma.setMinimum(1)
-        self.wGamma.setSingleStep(5)
-        self.wGammaLabel = QLabel('Gamma [{0}]:'.format(
-            self.wGamma.value()))
-        self.wGamma.valueChanged.connect(self.setGamma)
-        paramGrid.addRow(self.wGammaLabel, self.wGamma)
-        
-        self.wGaussianFilterSize = QSlider(Qt.Horizontal)
-        self.wGaussianFilterSize.setValue(self.parameters['gaussian_filterSize']*10)
-        self.wGaussianFilterSize.setMaximum(61)
-        self.wGaussianFilterSize.setMinimum(1)
-        self.wGaussianFilterSize.setSingleStep(2)
-        self.wGaussianFilterSizeLabel = QLabel('Gaussian filter [{0}]:'.format(
-            self.wGaussianFilterSize.value()/10.))
-        self.wGaussianFilterSize.valueChanged.connect(self.setGaussianFilterSize)
-        paramGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
-
-        
-        self.wContrastLim = QSlider(Qt.Horizontal)
-        self.wContrastLim.setValue(self.parameters['contrast_clipLimit'])
-        self.wContrastLim.setMinimum(0)
-        self.wContrastLim.setMaximum(200)
-        self.wContrastLimLabel = QLabel('Contrast limit [{0}]:'.format(
-            self.wContrastLim.value()))
-        self.wContrastLim.valueChanged.connect(self.setContrastLim)
-        paramGrid.addRow(self.wContrastLimLabel,self.wContrastLim)
-
-        self.wContrastGridSize = QSlider(Qt.Horizontal)
-        self.wContrastGridSize.setValue(self.parameters['contrast_gridSize'])
-        self.wContrastGridSize.setMaximum(200)
-        self.wContrastGridSize.setMinimum(1)
-        self.wContrastGridSize.setSingleStep(1)
-        self.wContrastGridSizeLabel = QLabel('Contrast grid size [{0}]:'.format(
-            self.wContrastGridSize.value()))
-        self.wContrastGridSize.valueChanged.connect(self.setContrastGridSize)
-        paramGrid.addRow(self.wContrastGridSizeLabel,self.wContrastGridSize)
-
-
-        self.wOpenKernelSize = QSlider(Qt.Horizontal)
-        self.wOpenKernelSize.setValue(self.parameters['open_kernelSize'])
-        self.wOpenKernelSize.setMaximum(61)
-        self.wOpenKernelSize.setMinimum(0)
-        self.wOpenKernelSize.setSingleStep(1)
-        self.wOpenKernelSizeLabel = QLabel('Morph open size [{0}]:'.format(
-            self.wOpenKernelSize.value()))
-        self.wOpenKernelSize.valueChanged.connect(self.setOpenKernelSize)
-        paramGrid.addRow(self.wOpenKernelSizeLabel, self.wOpenKernelSize)
-
-        self.wCloseKernelSize = QSlider(Qt.Horizontal)
-        self.wCloseKernelSize.setValue(self.parameters['close_kernelSize'])
-        self.wCloseKernelSize.setMaximum(61)
-        self.wCloseKernelSize.setMinimum(0)
-        self.wCloseKernelSize.setSingleStep(1)
-        self.wCloseKernelSizeLabel = QLabel('Morph close size [{0}]:'.format(
-            self.wCloseKernelSize.value()))
-        self.wCloseKernelSize.valueChanged.connect(self.setCloseKernelSize)
-        paramGrid.addRow(self.wCloseKernelSizeLabel, self.wCloseKernelSize)
-
-        
-        self.wBinThreshold = QSlider(Qt.Horizontal)
-        self.wBinThreshold.setValue(self.parameters['threshold'])
-        self.wBinThresholdLabel = QLabel('Binary contrast [40]:')
-        self.wBinThreshold.setMinimum(0)
-        self.wBinThreshold.setMaximum(255)
-        self.wBinThreshold.valueChanged.connect(self.setBinThreshold)
-        paramGrid.addRow(self.wBinThresholdLabel,self.wBinThreshold)
-        
-        self.wEyeRadius = QTextEdit('')
-        self.wEyeRadius.setMaximumHeight(25)
-        self.wEyeRadius.setMaximumWidth(40)
-        self.wEyeRadius.textChanged.connect(self.setEyeRadius)
-        paramGrid.addRow(QLabel('Approximate eye radius (mm):'),self.wEyeRadius)
-
-        self.wRoundIndex = QTextEdit(str(self.parameters['roundIndex']))
-        self.wRoundIndex.setMaximumHeight(25)
-        self.wRoundIndex.setMaximumWidth(40)
-        self.wRoundIndex.textChanged.connect(self.setRoundIndex)
-        paramGrid.addRow(QLabel('Circle threshold:'),self.wRoundIndex)
-
-        self.wNFrames = QLabel('')
-        self.wNFrames.setMaximumHeight(25)
-        self.wNFrames.setMaximumWidth(200)
-        paramGrid.addRow(QLabel('Number of frames:'),self.wNFrames)
-
-        # parameters, buttons and options
-        self.wPoints = QLabel('nan,nan \n nan,nan \n nan,nan \n nan,nan\n')
-        paramGrid.addRow(QLabel('ROI points:'),self.wPoints)
-        self.wPoints.mouseDoubleClickEvent = self.clearPoints
-        self.wInvertThreshold = QCheckBox()
-        self.wInvertThreshold.setChecked(self.parameters['invertThreshold'])
-        self.wInvertThreshold.stateChanged.connect(self.setInvertThreshold)
-        paramGrid.addRow(QLabel('White pupil:'),self.wInvertThreshold)
-        self.wDisableCRtrack = QCheckBox()
-        self.wDisableCRtrack.setChecked(self.parameters['crTrack'])
-        self.wDisableCRtrack.stateChanged.connect(self.setCRTrack)
-        paramGrid.addRow(QLabel('Track corneal reflection:'),self.wDisableCRtrack)
-
-        self.wSequentialCrMode = QCheckBox()
-        self.wSequentialCrMode.setChecked(self.parameters['sequentialCrMode'])
-        self.wSequentialCrMode.stateChanged.connect(self.setSequentialCrMode)
-        paramGrid.addRow(QLabel('Sequential refraction mode:'),self.wSequentialCrMode)
-
-        self.wSequentialPupilMode = QCheckBox()
-        self.wSequentialPupilMode.setChecked(self.parameters['sequentialPupilMode'])
-        self.wSequentialPupilMode.stateChanged.connect(self.setSequentialPupilMode)
-        paramGrid.addRow(QLabel('Sequential pupil mode:'),self.wSequentialPupilMode)
-
-        self.wResetSequentialPupil = QPushButton('Reset sequential pupil')
-        self.wResetSequentialPupil.clicked.connect(self.resetSequentialPupil)
-        paramGrid.addRow(self.wResetSequentialPupil)
-
-        self.wDisplayBinaryImage = QCheckBox()
-        self.wDisplayBinaryImage.setChecked(False)
-        self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
-        paramGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
-
-        self.saveParameters = QPushButton('Save tracker parameters')
-        self.saveParameters.clicked.connect(self.saveTrackerParameters)
-        paramGrid.addRow(self.saveParameters)
-
-
-        self.wDrawProcessed = QCheckBox()
-        self.wDrawProcessed.setChecked(self.tracker.drawProcessedFrame)
-        self.wDrawProcessed.stateChanged.connect(self.setDrawProcessed)
-        paramGrid.addRow(QLabel('Draw processed frame:'),self.wDrawProcessed)
-
-        grid.addWidget(paramGroup,0,0,3,1)
-        
-        self.wFrame = QSlider(Qt.Horizontal)
-        self.wFrame.valueChanged.connect(self.processFrame)
-        self.wFrame.setMaximum(self.imgstack.nFrames-1)
-        self.wFrame.setMinimum(0)
-        self.wFrame.setValue(0)
-        self.wFrame.mouseDoubleClickEvent = self.setStartFrame
-
-        grid.addWidget(self.wFrame,0,2,1,4)
-        # images and plots
-        img = self.imgstack.get(int(self.wFrame.value()))
-        cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
-        self.scene = QGraphicsScene()
-        self.view = QGraphicsView(self.scene)
-        self.setImage(self.tracker.img)
-        self.view.mouseReleaseEvent = self.selectPoints
-        grid.addWidget(self.view,1,2,6,5)
+#        grid.addWidget(self.wFrame,0,2,1,4)
+#        # images and plots
+#        img = self.imgstack.get(int(self.wFrame.value()))
+#        cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
+#        self.scene = QGraphicsScene()
+#        self.view = QGraphicsView(self.scene)
+#        self.setImage(self.tracker.img)
+        self.display.view.mouseReleaseEvent = self.selectPoints
+#        grid.addWidget(self.view,1,2,6,5)
         ####################
+        self.wFrame = self.display.wFrame
+        self.wFrame.setMaximum(self.imgstack.nFrames-1)
+        self.wFrame.valueChanged.connect(self.processFrame)
+        self.paramwidget.update = self.updateParam
         # window geometry
         self.setWindowTitle('mOUSEpUPILtracker')
         self.show()
-        self.updateGUI()
+#        self.updateGUI()
         self.running = False
 
     def setStartFrame(self,event):
@@ -282,95 +191,14 @@ class MPTrackerWindow(QWidget):
         self.parameters['points'] = []
         self.putPoints()
         self.processFrame(self.wFrame.value())
-
         
     def putPoints(self):
         points = self.tracker.ROIpoints
         self.tracker.parameters['pupilApprox'] = None
-        self.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
+        self.paramwidget.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
         
-    def updateTrackerOutputBinaryImage(self,state):
-        self.tracker.concatenateBinaryImage = state
-        self.processFrame(self.wFrame.value())
-
-    def setInvertThreshold(self,value):
-        self.parameters['invertThreshold'] = value
-        self.processFrame(self.wFrame.value())
-
-    def setCRTrack(self,value):
-        self.parameters['crTrack'] = value
-        self.processFrame(self.wFrame.value())
-            
-    def setRoundIndex(self):
-        value = self.wRoundIndex.toPlainText()
-        try:
-            self.parameters['roundIndex'] = float(value)
-        except:
-            print('Need to insert a float in the radius.')
-        self.processFrame(self.wFrame.value())
-
-    def setGamma(self,value):
-        self.parameters['gamma'] = float(value)/10
-        self.wGammaLabel.setText('Gamma [{0}]:'.format(self.parameters['gamma']))
-        self.processFrame(self.wFrame.value())
-
-    def setSequentialCrMode(self,value):
-        self.parameters['sequentialCrMode'] = value
-
-    def setSequentialPupilMode(self,value):
-        self.parameters['sequentialPupilMode'] = value
-
-    def setDrawProcessed(self,value):
-        self.tracker.drawProcessedFrame = value
-        self.processFrame(self.wFrame.value())
-
-    def setBinThreshold(self,value):
-        self.parameters['threshold'] = int(value)
-        self.wBinThresholdLabel.setText('Binary contrast [{0}]:'.format(int(value)))
-        self.processFrame(self.wFrame.value())
-
-    def setContrastLim(self,value):
-        self.parameters['contrast_clipLimit'] = int(value)
-        self.wContrastLimLabel.setText('Contrast limit [{0}]:'.format(int(value)))
-        self.tracker.set_clhe()
-        self.processFrame(self.wFrame.value())
-
-    def setContrastGridSize(self,value):
-        self.parameters['contrast_gridSize'] = int(value)
-        self.wContrastGridSizeLabel.setText('Contrast grid size [{0}]:'.format(int(value)))
-        self.tracker.set_clhe()
-        self.processFrame(self.wFrame.value())
-
-    def setGaussianFilterSize(self,value):
-        if not np.mod(value,2) == 1:
-            value += 1
-        
-        self.parameters['gaussian_filterSize'] = int(value)
-        self.wGaussianFilterSizeLabel.setText('Gaussian filter size [{0}]:'.format(int(value)))
-        self.processFrame(self.wFrame.value())
-
-    def setCloseKernelSize(self,value):
-        self.parameters['close_kernelSize'] = int(value)
-        self.wCloseKernelSizeLabel.setText('Morph close size [{0}]:'.format(int(value)))
-        self.processFrame(self.wFrame.value())
-
-    def setOpenKernelSize(self,value):
-        self.parameters['open_kernelSize'] = int(value)
-        self.wOpenKernelSizeLabel.setText('Morph open size [{0}]:'.format(int(value)))
-        self.processFrame(self.wFrame.value())
-
-    def resetSequentialPupil(self):
-        self.tracker.parameters['pupilApprox'] = None
-
-    def setEyeRadius(self):
-        value = self.wEyeRadius.toPlainText()
-        try:
-            self.parameters['eye_radius_mm'] = float(value)
-            print(self.tracker.parameters['eye_radius_mm'])
-        except:
-            print('Need to insert a float in the radius.')
     def selectPoints(self,event):
-        pt = self.view.mapToScene(event.pos())
+        pt = self.display.view.mapToScene(event.pos())
         if event.button() == 1:
             x = pt.x()
             y = pt.y()
@@ -378,11 +206,15 @@ class MPTrackerWindow(QWidget):
             img = self.imgstack.get(int(self.wFrame.value()))
             height,width = img.shape
             self.tracker.setROI(self.parameters['points'])
+            if len(self.tracker.ROIpoints) >= 4:
+                img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints,
+                                                         self.tracker.img)
+                self.cropPoints = [x1,x1+w,y1,y1+h]
+
             self.putPoints()
         elif event.button() == 2:
             x = pt.x()
             y = pt.y()
-            from .tracker import cropImageWithCoords
             img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints, self.tracker.img)
             pts = [int(round(x))+x1,int(round(y))+y1]
             self.tracker.parameters['crApprox'] = pts
@@ -399,25 +231,13 @@ class MPTrackerWindow(QWidget):
         self.qimage = QImage(frame, frame.shape[1], frame.shape[0], 
                              frame.strides[0], QImage.Format_RGB888)
         self.scene.addPixmap(QPixmap.fromImage(self.qimage))
-        self.view.fitInView(QRectF(0,0,
+        self.display.view.fitInView(QRectF(0,0,
                                    frame.shape[1],
                                    frame.shape[0]),
                             Qt.KeepAspectRatio)
         self.scene.update()
-
-    def updateGUI(self,value=0):
-#        if not self.parameters['points'] is None:
-#            self.wPoints.setText(' '.join(
-#                [str(p) for p in self.parameters['points']]))
-        self.wEyeRadius.setText(str(self.parameters['eye_radius_mm']))
-        self.wNFrames.setText(str(self.parameters['number_frames']))
-        self.wContrastLim.setValue(int(self.parameters['contrast_clipLimit']))
-        self.wContrastGridSize.setValue(
-            int(self.parameters['contrast_gridSize']))
-        self.wGaussianFilterSize.setValue(
-            int(self.parameters['gaussian_filterSize']))
-        self.wOpenKernelSize.setValue(int(self.parameters['open_kernelSize']))
-        self.wCloseKernelSize.setValue(int(self.parameters['close_kernelSize']))
+    def updateParam(self):
+        self.processFrame(int(self.wFrame.value()))
     # Update
     def processFrame(self,val = 0):
         f = int(val)
@@ -433,10 +253,15 @@ class MPTrackerWindow(QWidget):
             self.results['ellipsePix'][f,2:] = pupil_ellipse_par
             self.results['pupilPix'][f,:] = pupil_pos
             self.results['crPix'][f,:] = cr_pos
-            self.wNFrames.setText(str(f) +
-                                  '//' + str(self.parameters['number_frames']))
-
-            self.setImage(self.tracker.img)
+            #self.wNFrames.setText(str(f) +
+            #                      '//' + str(self.parameters['number_frames']))
+            if len(self.cropPoints) >= 4 and not self.tracker.concatenateBinaryImage:
+                x1,x2,y1,y2 = self.cropPoints
+                image =  cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+                image[y1:y2,x1:x2,:] = self.tracker.img
+            else:
+                image = self.tracker.img
+            self.display.setImage(image)
         self.app.processEvents()
         
     def keyPressEvent(self, e):
@@ -601,34 +426,10 @@ class MPTrackerWindow(QWidget):
             fd['pointsPix'][:] = np.array(self.parameters['points'])
             fd.close()
             print("Saved to " + self.resultfile)
-            self.saveTrackerParameters()
+            self.paramwidget.saveTrackerParameters(self.resultfile)
         else:
             print("File already exists. Delete it first.")
             
-    def saveTrackerParameters(self):
-        if self.resultfile is None:
-            try:
-                paramfile = QFileDialog().getSaveFileName()
-            except:
-                paramfile = ''
-        else:
-            paramfile = str(self.resultfile)
-        if type(paramfile) is tuple:
-            paramfile = paramfile[0]
-        fname,ext = os.path.splitext(paramfile)
-        if fname is None:
-            fname =  paramfile
-        if len(fname)==0:
-            print('Can not save to file with no name...'+paramfile + ' Crack...')
-            return
-        import json
-        from .io import JsonEncoder
-        paramfile = fname + '.json'
-        with open(paramfile,'w') as f:
-            tmp = dict(self.parameters)
-            json.dump(tmp,f,indent=4, sort_keys=True,cls=JsonEncoder)
-        print('Saved parameters [{0}].'.format(paramfile))
-        
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',
