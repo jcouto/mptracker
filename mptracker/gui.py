@@ -160,7 +160,6 @@ class MPTrackerWindow(QMainWindow):
 #        self.wFrame.setMaximum(self.imgstack.nFrames-1)
 #        self.wFrame.setMinimum(0)
 #        self.wFrame.setValue(0)
- #       self.wFrame.mouseDoubleClickEvent = self.setStartFrame
 
 #        grid.addWidget(self.wFrame,0,2,1,4)
 #        # images and plots
@@ -175,6 +174,7 @@ class MPTrackerWindow(QMainWindow):
         self.wFrame = self.display.wFrame
         self.wFrame.setMaximum(self.imgstack.nFrames-1)
         self.wFrame.valueChanged.connect(self.processFrame)
+        self.wFrame.mouseDoubleClickEvent = self.setStartFrame
         self.paramwidget.update = self.updateParam
         # window geometry
         self.setWindowTitle('mOUSEpUPILtracker')
@@ -184,7 +184,7 @@ class MPTrackerWindow(QMainWindow):
 
     def setStartFrame(self,event):
         self.startFrame = int(self.wFrame.value())
-        print('StartFrame set.')
+        print('StartFrame set [{0}].'.format(self.wFrame.value()))
         
     def clearPoints(self,event):
         self.tracker.ROIpoints = []
@@ -215,7 +215,8 @@ class MPTrackerWindow(QMainWindow):
         elif event.button() == 2:
             x = pt.x()
             y = pt.y()
-            img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints, self.tracker.img)
+            img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints,
+                                                     self.tracker.img)
             pts = [int(round(x))+x1,int(round(y))+y1]
             self.tracker.parameters['crApprox'] = pts
         self.processFrame(self.wFrame.value())
@@ -265,9 +266,23 @@ class MPTrackerWindow(QMainWindow):
         self.app.processEvents()
         
     def keyPressEvent(self, e):
-        if e.key() == Qt.Key_Escape: # ESC
+        if e.key() == Qt.Key_Escape or e.key() == ord('Q'): # ESC
             self.close()
-        elif e.key() == 80: # P
+        elif e.key() == 72:
+            print('''
++++++++++++++++++++++++++++++++++++++++++
++++++++++++MousePupilTracker+++++++++++++
++++++++++++++++++++++++++++++++++++++++++
++  Esc/Q - Quit                         +
++    R   - run analysis                 +
++    P   - plot                         +
++    F   - run analysis and save output +
++    A   - get augmented output         +
++    H   - print this message           +
++++++++++++++++++++++++++++++++++++++++++
+
+''')
+        elif e.key() == ord("P"): 
             results = self.results.copy()
             clahe = cv2.createCLAHE(7,(10,10))
             ii = 100
@@ -357,7 +372,9 @@ class MPTrackerWindow(QMainWindow):
             # add to keras model
             if self.unet_data is None:
                 self.unet_data = []
-            self.tracker.getAugmented()
+            img = self.imgstack.get(self.wFrame.value())
+            img = self.tracker.getAugmented(img)
+            self.display.setImage(img)
         else:
             print(e.key())
 

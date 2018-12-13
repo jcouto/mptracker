@@ -39,8 +39,6 @@ class MptrackerDisplay(QWidget):
         self.wFrame.setMaximum(1)
         self.wFrame.setMinimum(0)
         self.wFrame.setValue(0)
-#        self.wFrame.mouseDoubleClickEvent = self.setStartFrame
-
         grid.addRow(self.wFrame)
         # images and plots
         self.scene = QGraphicsScene()
