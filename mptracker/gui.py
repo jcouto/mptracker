@@ -115,13 +115,11 @@ class MPTrackerWindow(QMainWindow):
         if not len(self.tracker.ROIpoints) >= 4:
             self.cropPoints = []
         else:
-            img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints,
-                                                     self.tracker.img)
-            self.cropPoints = [x1,x1+w,y1,y1+h]
-
+            self.updateCropPoints()
         self.startFrame = 0
         #self.endFrame = self.imgstack.nFrames
         self.initUI()
+        self.update()
         
     def initUI(self):
 
@@ -134,7 +132,7 @@ class MPTrackerWindow(QMainWindow):
         self.tabs = []
         self.tabs.append(QDockWidget("Parameters",self))
         layout = QVBoxLayout()
-        self.paramwidget = MptrackerParameters(self.tracker)
+        self.paramwidget = MptrackerParameters(self.tracker,self.imgstack.get(0))
         self.tabs[-1].setWidget(self.paramwidget)
         self.tabs[-1].setFloating(False)
         self.addDockWidget(
@@ -206,12 +204,8 @@ class MPTrackerWindow(QMainWindow):
             img = self.imgstack.get(int(self.wFrame.value()))
             height,width = img.shape
             self.tracker.setROI(self.parameters['points'])
-            if len(self.tracker.ROIpoints) >= 4:
-                img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints,
-                                                         self.tracker.img)
-                self.cropPoints = [x1,x1+w,y1,y1+h]
-
             self.putPoints()
+            self.updateCropPoints()
         elif event.button() == 2:
             x = pt.x()
             y = pt.y()
@@ -220,6 +214,14 @@ class MPTrackerWindow(QMainWindow):
             pts = [int(round(x))+x1,int(round(y))+y1]
             self.tracker.parameters['crApprox'] = pts
         self.processFrame(self.wFrame.value())
+
+    def updateCropPoints(self):
+        if len(self.tracker.ROIpoints) >= 4:
+            img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints,
+                                                     self.tracker.img)
+            self.cropPoints = [x1,x1+w,y1,y1+h]
+        else:
+            self.cropPoints = []
 
     def setImage(self,image):
         self.scene.clear()
@@ -256,7 +258,9 @@ class MPTrackerWindow(QMainWindow):
             self.results['crPix'][f,:] = cr_pos
             #self.wNFrames.setText(str(f) +
             #                      '//' + str(self.parameters['number_frames']))
-            if len(self.cropPoints) >= 4 and not self.tracker.concatenateBinaryImage:
+            if (len(self.tracker.ROIpoints)>=4  and
+                len(self.cropPoints) == 4 and
+                not self.tracker.concatenateBinaryImage):
                 x1,x2,y1,y2 = self.cropPoints
                 image =  cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
                 image[y1:y2,x1:x2,:] = self.tracker.img

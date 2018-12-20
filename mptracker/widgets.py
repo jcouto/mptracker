@@ -255,9 +255,10 @@ class MptrackerParameters(QWidget):
         
         self.wROIscene = QGraphicsScene()
         self.wROIview = QGraphicsView(self.wROIscene)
-        self.setROIImage(image)
+        self.setROIImage(cv2.equalizeHist(image))
         self.wROIview.setGeometry(0,0,75,75)
         self.wROIview.scale(0.3,0.3)
+        self.wROIview.mouseReleaseEvent = self.selectPoints
         pGrid.addRow(self.wROIview)
 #         self.tabROI.layout.addWidget(pGrid)
 
@@ -378,13 +379,13 @@ class MptrackerParameters(QWidget):
         except:
             print('Need to insert a float in the radius.')
     def selectPoints(self,event):
-        pt = self.view.mapToScene(event.pos())
+        pt = self.wROIview.mapToScene(event.pos())
         if event.button() == 1:
             x = pt.x()
             y = pt.y()
             self.parameters['points'].append([int(round(x)),int(round(y))])
-            img = self.imgstack.get(int(self.wFrame.value()))
-            height,width = img.shape
+            #img = self.imgstack.get(int(self.wFrame.value()))
+            #height,width = img.shape
             self.tracker.setROI(self.parameters['points'])
             self.putPoints()
         elif event.button() == 2:
@@ -394,7 +395,6 @@ class MptrackerParameters(QWidget):
             img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints, self.tracker.img)
             pts = [int(round(x))+x1,int(round(y))+y1]
             self.tracker.parameters['crApprox'] = pts
-        self.update(self.wFrame.value())
     def update(self):
         print('Pass...')
         
