@@ -88,8 +88,16 @@ def copyFilesToTmp(targetpath):
 class TiffFileSequence(object):
     def __init__(self,targetpath = None):
         '''Lets you access a sequence of TIFF files without noticing...'''
-        self.path = os.path.dirname(targetpath)
-        self.basename,extension = os.path.splitext(os.path.basename(targetpath))
+        from natsort import natsorted
+        if '*' in targetpath:
+
+            filenames = natsorted(glob(targetpath))
+            self.filenames = filenames
+            self.path = os.path.dirname(self.filenames[0])
+            self.basename,extension = os.path.splitext(os.path.basename(self.filenames[0]))
+        else:
+            self.path = os.path.dirname(targetpath)
+            self.basename,extension = os.path.splitext(os.path.basename(targetpath))
         #for f in range(len(self.basename)):
         #    if not self.basename[-f].isdigit():
         #        break
@@ -105,10 +113,10 @@ class TiffFileSequence(object):
         #    if self.basename in f:
         #        self.filenames.append(f)
 
-        filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
+            filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
         # Use natural sort
-        pat = re.compile('([0-9]+)')
-        self.filenames = [filenames[j] for j in np.lexsort(np.array([[int(i) for i in pat.findall(os.path.basename(fname))] for fname in filenames]).T)]
+            pat = re.compile('([0-9]+)')
+            self.filenames = [filenames[j] for j in np.lexsort(np.array([[int(i) for i in pat.findall(os.path.basename(fname))] for fname in filenames]).T)]
 
         if not len(self.filenames):
             print('Wrong target path: ' + pjoin(self.path,'*' + extension))
@@ -143,7 +151,7 @@ class TiffFileSequence(object):
         fileidx = np.where(self.framesOffset <= frame)[0][-1]
         # This breaks for huge tif files
         return fileidx,int(frame - self.framesOffset[fileidx])
-        
+
     def getDescripion(self,frame):
         '''Gets image description tag from tiff page'''
         frameidx = self.getFrameIndex(frame)
@@ -200,7 +208,7 @@ class NorpixFile(object):
         '''Computes the frame index from multipage tiff files.'''
         fileidx = np.where(self.framesOffset <= frame)[0][-1]
         return fileidx,frame - self.framesOffset[fileidx]
-        
+
     def get(self,frame):
         '''Returns an image given the frame ID.
         Useful attributes are nFrames, h (frame height) and w (frame width)
@@ -252,7 +260,7 @@ class AVIFileSequence(object):
         fileidx = np.where(self.framesOffset <= frame)[0][-1]
         # This breaks for huge tif files
         return fileidx,int(frame - self.framesOffset[fileidx])
-        
+
     def get(self,frame):
         '''Returns an image given the frame ID.
         Useful attributes are nFrames, h (frame height) and w (frame width)

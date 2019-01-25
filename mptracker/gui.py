@@ -53,7 +53,7 @@ except:
                              QImage,
                              QPixmap)
     from PyQt4.QtCore import Qt,QSize,QRectF,QLineF,QPointF
-   
+
 import pylab as plt
 plt.matplotlib.style.use('ggplot')
 
@@ -74,7 +74,7 @@ class MPTrackerWindow(QMainWindow):
         self.app = app
         if targetpath is None:
             self.targetpath = QFileDialog(self).getOpenFileName()[0]
-            if not os.path.isfile(self.targetpath):
+            if not os.path.isfile(self.targetpath) or not '*' in self.targetpath:
                 print('Selected non file:'+str(self.targetpath))
                 sys.exit()
         else:
@@ -120,7 +120,7 @@ class MPTrackerWindow(QMainWindow):
         #self.endFrame = self.imgstack.nFrames
         self.initUI()
         self.update()
-        
+
     def initUI(self):
 
         # Menu
@@ -152,7 +152,7 @@ class MPTrackerWindow(QMainWindow):
 #        self.wNFrames.setMaximumHeight(25)
 #        self.wNFrames.setMaximumWidth(200)
 #        paramGrid.addRow(QLabel('Number of frames:'),self.wNFrames)
-        
+
 #        self.wFrame = QSlider(Qt.Horizontal)
 #        self.wFrame.valueChanged.connect(self.processFrame)
 #        self.wFrame.setMaximum(self.imgstack.nFrames-1)
@@ -183,18 +183,18 @@ class MPTrackerWindow(QMainWindow):
     def setStartFrame(self,event):
         self.startFrame = int(self.wFrame.value())
         print('StartFrame set [{0}].'.format(self.wFrame.value()))
-        
+
     def clearPoints(self,event):
         self.tracker.ROIpoints = []
         self.parameters['points'] = []
         self.putPoints()
         self.processFrame(self.wFrame.value())
-        
+
     def putPoints(self):
         points = self.tracker.ROIpoints
         self.tracker.parameters['pupilApprox'] = None
         self.paramwidget.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
-        
+
     def selectPoints(self,event):
         pt = self.display.view.mapToScene(event.pos())
         if event.button() == 1:
@@ -231,7 +231,7 @@ class MPTrackerWindow(QMainWindow):
         #if len(self.parameters['points']) > 2:
         #    pts = np.array(pts).reshape((-1,1,2))
         #cv2.polylines(frame,[pts],True,(0,255,255))
-        self.qimage = QImage(frame, frame.shape[1], frame.shape[0], 
+        self.qimage = QImage(frame, frame.shape[1], frame.shape[0],
                              frame.strides[0], QImage.Format_RGB888)
         self.scene.addPixmap(QPixmap.fromImage(self.qimage))
         self.display.view.fitInView(QRectF(0,0,
@@ -268,7 +268,7 @@ class MPTrackerWindow(QMainWindow):
                 image = self.tracker.img
             self.display.setImage(image)
         self.app.processEvents()
-        
+
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape or e.key() == ord('Q'): # ESC
             self.close()
@@ -286,7 +286,7 @@ class MPTrackerWindow(QMainWindow):
 +++++++++++++++++++++++++++++++++++++++++
 
 ''')
-        elif e.key() == ord("P"): 
+        elif e.key() == ord("P"):
             results = self.results.copy()
             clahe = cv2.createCLAHE(7,(10,10))
             ii = 100
@@ -306,13 +306,13 @@ class MPTrackerWindow(QMainWindow):
             ax.plot(results['pupilPix'][ii,0],
                     results['pupilPix'][ii,1],'r.',alpha=0.8)
             ax.plot(results['crPix'][ii,0],
-                    results['crPix'][ii,1],'bo',alpha=0.8)            
+                    results['crPix'][ii,1],'bo',alpha=0.8)
             s1 = ellipseToContour(results['pupilPix'][ii,:],
                                   results['ellipsePix'][ii,2]/2,
                                   results['ellipsePix'][ii,3]/2,
                                   results['ellipsePix'][ii,4],
                                   np.linspace(0,2*np.pi,200))
-            
+
             ax.plot(np.hstack([s1[:,0,1],s1[0,0,1]]),
                     np.hstack([s1[:,0,0],s1[0,0,0]]),'-',color='orange',alpha=0.8)
             ax.grid('off')
@@ -330,7 +330,7 @@ class MPTrackerWindow(QMainWindow):
             else:
                 az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
                                                       results['reference'])
-                
+
             axdiam.plot(medfilt(diam));axdiam.set_xticklabels([])
             axaz.plot(medfilt(az));axaz.set_xticklabels([]);
 
@@ -338,7 +338,7 @@ class MPTrackerWindow(QMainWindow):
             axel.plot(medfilt(el));axel.set_ylabel('Elevation \n [deg]',color='black')
 
             axdiam.set_ylabel('Diameter \n [mm]',color='black')
-            
+
             def cleanAx(ax1):
                 ax1.locator_params(axis='y',nbins=3)
                 ax1.spines['right'].set_visible(False)
@@ -439,7 +439,7 @@ class MPTrackerWindow(QMainWindow):
             else:
                 az,el,theta = convertPixelToEyeCoords(self.results['pupilPix'],
                                                       self.results['reference'])
-                
+
             fd['diameter'][:] = diam
             fd['azimuth'][:] = az
             fd['elevation'][:] = el
@@ -450,7 +450,7 @@ class MPTrackerWindow(QMainWindow):
             self.paramwidget.saveTrackerParameters(self.resultfile)
         else:
             print("File already exists. Delete it first.")
-            
+
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',
@@ -473,7 +473,7 @@ def main():
 
     app = QApplication(sys.argv)
     target = None
-    if os.path.isfile(args.target):
+    if os.path.isfile(args.target) or '*' in args.target:
         target = args.target
     params = None
 
