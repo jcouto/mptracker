@@ -209,8 +209,8 @@ class MptrackerParameters(QWidget):
 
         self.tabDisplay.layout = QGridLayout()
         pGroup = QGroupBox()
-        pGrid = QFormLayout()
-        pGroup.setLayout(pGrid)
+        self.pGridSave = QFormLayout()
+        pGroup.setLayout(self.pGridSave)
         pGroup.setTitle("Display parameters")
         self.tabDisplay.setLayout(self.tabDisplay.layout)
         
@@ -218,27 +218,27 @@ class MptrackerParameters(QWidget):
         self.wEyeRadius.setMaximumHeight(25)
         self.wEyeRadius.setMaximumWidth(40)
         self.wEyeRadius.textChanged.connect(self.setEyeRadius)
-        pGrid.addRow(QLabel('Approximate eye radius (mm):'),self.wEyeRadius)
+        self.pGridSave.addRow(QLabel('Approximate eye radius (mm):'),self.wEyeRadius)
 
 
         self.wDisplayBinaryImage = QCheckBox()
         self.wDisplayBinaryImage.setChecked(False)
         self.wDisplayBinaryImage.stateChanged.connect(self.updateTrackerOutputBinaryImage)
-        pGrid.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
+        self.pGridSave.addRow(QLabel('Display binary image:'),self.wDisplayBinaryImage)
 
         self.wDrawProcessed = QCheckBox()
         self.wDrawProcessed.setChecked(self.tracker.drawProcessedFrame)
         self.wDrawProcessed.stateChanged.connect(self.setDrawProcessed)
-        pGrid.addRow(QLabel('Draw processed frame:'),self.wDrawProcessed)
+        self.pGridSave.addRow(QLabel('Draw processed frame:'),self.wDrawProcessed)
 
         self.wNFrames = QLabel('')
         self.wNFrames.setMaximumHeight(25)
         self.wNFrames.setMaximumWidth(200)
-        pGrid.addRow(QLabel('Number of frames:'),self.wNFrames)
+        self.pGridSave.addRow(QLabel('Number of frames:'),self.wNFrames)
 
         self.saveParameters = QPushButton('Save tracker parameters')
         self.saveParameters.clicked.connect(self.saveTrackerParameters)
-        pGrid.addRow(self.saveParameters)
+        self.pGridSave.addRow(self.saveParameters)
 
         
         self.tabDisplay.layout.addWidget(pGroup)
