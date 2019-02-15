@@ -397,7 +397,7 @@ class MptrackerParameters(QWidget):
             self.tracker.parameters['crApprox'] = pts
     def update(self):
         print('Pass...')
-        
+
     def saveTrackerParameters(self,resultfile = None):
         if resultfile is None or resultfile == False:
             try:
@@ -408,18 +408,8 @@ class MptrackerParameters(QWidget):
             paramfile = str(resultfile)
         if type(paramfile) is tuple:
             paramfile = paramfile[0]
-        fname,ext = os.path.splitext(paramfile)
-        if fname is None:
-            fname =  paramfile
-        if len(fname)==0:
-            print('Can not save to file with no name...'+paramfile + ' Crack...')
-            return
-        import json
-        from .io import JsonEncoder
-        paramfile = fname + '.json'
-        with open(paramfile,'w') as f:
-            tmp = dict(self.parameters)
-            json.dump(tmp,f,indent=4, sort_keys=True,cls=JsonEncoder)
-        print('Saved parameters [{0}].'.format(paramfile))
+        from .io import saveTrackerParameters
+        res = saveTrackerParameters(paramfile,parameters)
+        print('Saved parameters [{0}].'.format(paramfile))        
 
         

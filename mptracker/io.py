@@ -20,6 +20,7 @@ from shutil import copyfile
 import cv2 # For reading 16bit tif
 import re
 import json
+from .utils import *
 
 class JsonEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -56,6 +57,59 @@ def createResultsFile(filename,nframes,MPIO = False):
     f.create_dataset('pointsPix',dtype = np.int,
                      shape=(4,2),compression = 'gzip')
     return f
+
+def exportResultsToHDF5(resultfile,
+                        parameters,
+                        results):
+    fname,ext = os.path.splitext(resultfile)
+    if len(ext)==0:
+        print('File has no extension:'+resultfile + ' Crack...')
+        return None
+    if not os.path.isfile(resultfile):
+        diam = computePupilDiameterFromEllipse(results['ellipsePix'],
+                                               computeConversionFactor(
+                                                   results['reference']))
+        if parameters['crTrack']:
+            az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
+                                                  results['reference'],
+                                                  results['crPix'])
+        else:
+            az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
+                                                  results['reference'])
+            
+        fd = createResultsFile(resultfile,
+                               len(diam))
+        fd['ellipsePix'][:] = results['ellipsePix']
+        fd['positionPix'][:] = results['pupilPix']
+        fd['crPix'][:] = results['crPix']
+        fd['diameter'][:] = diam.astype(np.float32)
+        fd['azimuth'][:] = az.astype(np.float32)
+        fd['elevation'][:] = el.astype(np.float32)
+        fd['theta'][:] = theta.astype(np.float32)
+        fd['pointsPix'][:] = np.array(parameters['points'])
+        fd.flush()
+        fd.close()
+        saveTrackerParameters(resultfile,parameters)
+        return True
+    
+    else:
+        print("File {0} already exists. Delete it first.".format(resultfile))
+        return False
+
+def saveTrackerParameters(paramfile,parameters):
+    fname,ext = os.path.splitext(paramfile)
+    if fname is None:
+        fname =  paramfile
+    if len(fname)==0:
+        print('Can not save to file with no name...'+paramfile + ' Crack...')
+        return False
+    import json
+    from .io import JsonEncoder
+    paramfile = fname + '.json'
+    with open(paramfile,'w') as f:
+        tmp = dict(parameters)
+        json.dump(tmp,f,indent=4, sort_keys=True,cls=JsonEncoder)
+    return True
 
 
 def copyFilesToTmp(targetpath):

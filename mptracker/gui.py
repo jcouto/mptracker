@@ -418,38 +418,11 @@ class MPTrackerWindow(QMainWindow):
             except:
                 self.resultfile = ''
         self.resultfile = str(self.resultfile)
-        fname,ext = os.path.splitext(self.resultfile)
-        if len(ext)==0:
-            print('File has no extension:'+self.resultfile + ' Crack...')
-            self.resultfile = None
-            return
-        if not os.path.isfile(self.resultfile):
-            fd = createResultsFile(self.resultfile,
-                                   self.parameters['number_frames'])
-            fd['ellipsePix'][:] = self.results['ellipsePix']
-            fd['positionPix'][:] = self.results['pupilPix']
-            fd['crPix'][:] = self.results['crPix']
-            diam = computePupilDiameterFromEllipse(self.results['ellipsePix'],
-                                                   computeConversionFactor(
-                                                       self.results['reference']))
-            if self.parameters['crTrack']:
-                az,el,theta = convertPixelToEyeCoords(self.results['pupilPix'],
-                                                      self.results['reference'],
-                                                      self.results['crPix'])
-            else:
-                az,el,theta = convertPixelToEyeCoords(self.results['pupilPix'],
-                                                      self.results['reference'])
-
-            fd['diameter'][:] = diam
-            fd['azimuth'][:] = az
-            fd['elevation'][:] = el
-            fd['theta'][:] = theta
-            fd['pointsPix'][:] = np.array(self.parameters['points'])
-            fd.close()
+        res = exportResultsToHDF5(self.resultfile,
+                                  self.parameters,
+                                  self.results)            
+        if not res is None:
             print("Saved to " + self.resultfile)
-            self.paramwidget.saveTrackerParameters(self.resultfile)
-        else:
-            print("File already exists. Delete it first.")
 
 def main():
     parser = argparse.ArgumentParser(description=description)
