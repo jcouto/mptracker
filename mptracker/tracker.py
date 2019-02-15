@@ -40,11 +40,11 @@ def extractPupilShapeAnalysis(img,params,
                               concatenateBinaryImage = False):
     # Contrast and filtering
     x1,y1 = (0,0)
-    w,h = img.shape
+    h,w = img.shape
     roiArea = w*h
     if len(ROIpoints) >= 4:
         img,(x1, y1, w, h) = cropImageWithCoords(ROIpoints,img)
-        roiArea = w*h
+        roiArea = w*h   
         if params['crApprox'] is None:
             try:
                 mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(img,(21,21),100))
@@ -64,6 +64,7 @@ def extractPupilShapeAnalysis(img,params,
                 maxL[1] + params['crApprox'][1] - y1 - crB)
     else:
         maxL = (0,0)
+    params['imagecropidx'] = (x1, y1, w, h)
     outimg = img.copy()
     outimg = cv2.cvtColor(outimg,cv2.COLOR_GRAY2RGB)
     img = adjust_gamma(img,params['gamma'])
@@ -220,25 +221,26 @@ def extractPupilShapeAnalysis(img,params,
 
 class MPTracker(object):
     defaults = {
-                'contrast_clipLimit':10,
-                'contrast_gridSize':5,
-                'gaussian_filterSize':3,
-                'open_kernelSize':0,
-                'close_kernelSize':2,
-                'threshold':40,
-                'minPupilArea': 0.005,
-                'maxPupilArea': 0.7,
-                'gamma': 1.0,
-                'roundIndex': 1.5,
-                'crApprox':None,
-                'crFrac':0.1,
-                'sequentialCrMode':False,
-                'sequentialPupilMode':False,
-                'points':[],
-                'invertThreshold':False,
-                'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
-                'number_frames':0,
-            }
+        'contrast_clipLimit':10,
+        'contrast_gridSize':5,
+        'contrast_roi': True,
+        'gaussian_filterSize':3,
+        'open_kernelSize':0,
+        'close_kernelSize':2,
+        'threshold':40,
+        'minPupilArea': 0.005,
+        'maxPupilArea': 0.7,
+        'gamma': 1.0,
+        'roundIndex': 1.5,
+        'crApprox':None,
+        'crFrac':0.1,
+        'sequentialCrMode':False,
+        'sequentialPupilMode':False,
+        'points':[],
+        'invertThreshold':False,
+        'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
+        'number_frames':0,
+    }
     def __init__(self,parameters = None, drawProcessedFrame=False):
         if parameters is None:
             self.parameters = self.defaults
