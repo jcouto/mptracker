@@ -243,7 +243,7 @@ class MPTracker(object):
     }
     def __init__(self,parameters = None, drawProcessedFrame=False):
         if parameters is None:
-            self.parameters = self.defaults
+            self.parameters = self.defaults.copy()
         else:
             self.parameters = parameters
         for k in self.defaults.keys():

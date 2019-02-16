@@ -33,7 +33,7 @@ class JsonEncoder(json.JSONEncoder):
         else:
             return super(JsonEncoder, self).default(obj)
 
-def createResultsFile(filename,nframes,MPIO = False):
+def createResultsFile(filename,nframes,npoints = 4,MPIO = False):
     if not os.path.isdir(os.path.dirname(filename)):
         os.makedirs(os.path.dirname(filename))
     if MPIO:
@@ -55,7 +55,7 @@ def createResultsFile(filename,nframes,MPIO = False):
     f.create_dataset('crPix',dtype = np.int,
                      shape=(nframes,2),compression = 'gzip')
     f.create_dataset('pointsPix',dtype = np.int,
-                     shape=(4,2),compression = 'gzip')
+                     shape=(npoints,2),compression = 'gzip')
     return f
 
 def exportResultsToHDF5(resultfile,
@@ -78,7 +78,8 @@ def exportResultsToHDF5(resultfile,
                                                   results['reference'])
             
         fd = createResultsFile(resultfile,
-                               len(diam))
+                               len(diam),
+                               npoints = len(parameters['points']))
         fd['ellipsePix'][:] = results['ellipsePix']
         fd['positionPix'][:] = results['pupilPix']
         fd['crPix'][:] = results['crPix']
@@ -144,34 +145,16 @@ class TiffFileSequence(object):
         '''Lets you access a sequence of TIFF files without noticing...'''
         from natsort import natsorted
         if '*' in targetpath:
-
             filenames = natsorted(glob(targetpath))
             self.filenames = filenames
             self.path = os.path.dirname(self.filenames[0])
             self.basename,extension = os.path.splitext(os.path.basename(self.filenames[0]))
         else:
             self.path = os.path.dirname(targetpath)
+            print(self.path)
             self.basename,extension = os.path.splitext(os.path.basename(targetpath))
-        #for f in range(len(self.basename)):
-        #    if not self.basename[-f].isdigit():
-        #        break
-        #if not -f+1 == 0:
-        #    f = -f+1
-        #else:
-        #    f = -1
-        #
-        #self.basename = self.basename[:f]
-        #filtered_filenames = []
-        #self.filenames = []
-        #for f in filenames:
-        #    if self.basename in f:
-        #        self.filenames.append(f)
-
-            filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
-        # Use natural sort
-            pat = re.compile('([0-9]+)')
-            self.filenames = [filenames[j] for j in np.lexsort(np.array([[int(i) for i in pat.findall(os.path.basename(fname))] for fname in filenames]).T)]
-
+            self.filenames = natsorted(glob(pjoin(self.path,'*'+extension)))
+            print(len(self.filenames))
         if not len(self.filenames):
             print('Wrong target path: ' + pjoin(self.path,'*' + extension))
             raise
@@ -180,11 +163,14 @@ class TiffFileSequence(object):
         for i,f in enumerate(self.filenames):
             if i==0 or i== len(self.filenames)-1:
                 self.files.append(TiffFile(f))
+                self.compressedhack = False
                 try:
                     N,h,w = self.files[i].series[0].shape
                 except:
                     h,w = self.files[i].series[0].shape
-                    N = 1
+                    N = len(self.files[i].series)
+                    if N > 1:
+                        self.compressedhack = True
             else:
                 self.files.append(None)
             framesPerFile.append(np.int64(N))
@@ -198,6 +184,8 @@ class TiffFileSequence(object):
         self.framesPerFile = np.array(framesPerFile, dtype=np.int64)
         self.framesOffset = np.hstack([0,np.cumsum(self.framesPerFile[:-1])])
         self.nFrames = np.sum(framesPerFile)
+        print('There are {0} frames in {1} files'.format(self.nFrames,
+                                                         len(self.filenames)))
         self.curimg = None
         self.curidx = -1
     def getFrameIndex(self,frame):
@@ -226,7 +214,10 @@ class TiffFileSequence(object):
             if not self.files[fileidx-1] is None:
                 self.files[fileidx-1].close()
                 self.files[fileidx-1] = None
-            img = self.files[fileidx].asarray(frameidx)
+            if self.compressedhack:
+                img = self.files[fileidx].series[frameidx].asarray()
+            else:
+                img = self.files[fileidx].asarray(frameidx)
         else:
             if not self.curidx == fileidx:
                 self.curimg = imread(self.filenames[fileidx])
