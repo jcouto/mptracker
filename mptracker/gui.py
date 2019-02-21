@@ -68,8 +68,10 @@ description = ''' GUI to define parameters and track the pupil.'''
 
 class MPTrackerWindow(QMainWindow):
     def __init__(self,targetpath = None,
-                 resfile = None, params = None,
-                 app = None, usetmp = False):
+                 resfile = None,
+                 params = None,
+                 app = None,
+                 usetmp = False):
         super(MPTrackerWindow,self).__init__()
         self.app = app
         if targetpath is None:
@@ -93,7 +95,8 @@ class MPTrackerWindow(QMainWindow):
             self.imgstack =  AVIFileSequence(target)
         else:
             print('Unknown extension for:'+target)
-        self.tracker = MPTracker(parameters = params, drawProcessedFrame = True)
+        self.tracker = MPTracker(parameters = params,
+                                 drawProcessedFrame = True)
         self.tracker.apply(self.imgstack.get(0))
         self.unet_data = None
         self.parameters = self.tracker.parameters
@@ -282,10 +285,13 @@ class MPTrackerWindow(QMainWindow):
 +    P   - plot                         +
 +    F   - run analysis and save output +
 +    A   - get augmented output         +
++    M   - run tracker in parallel      +
 +    H   - print this message           +
 +++++++++++++++++++++++++++++++++++++++++
 
 ''')
+        elif e.key() == ord("M"):
+            self.runParallel()
         elif e.key() == ord("P"):
             results = self.results.copy()
             clahe = cv2.createCLAHE(7,(10,10))
@@ -382,16 +388,51 @@ class MPTrackerWindow(QMainWindow):
         else:
             print(e.key())
 
-    def runDetectionVerbose(self,saveOutput = False):
-        self.running = True
-        ts = time.time()
-        if not len(self.parameters['points']) == 4:
-            print('You did not specify a region... Please select 4 points around the eye.')
+    def runParallel(self):
+        from .io import TiffFileSequence
+        seq = self.imgstack
+        if not type(seq) is TiffFileSequence:
+            print('This mode only works with TiffFileSequence.')
             return
-        self.results['reference'] = [self.parameters['points'][0],self.parameters['points'][2]]
+        if not len(seq.filenames)>1:
+            print('There is only one file. Run sequencial [R key] .')
+            return
+        if not self._initResults():
+            return
+        from multiprocess import Pool
+        from functools import partial
+        from .parutils import process_tiff
+        nprocesses = 12
+        ts = time.time()
+        print('Starting parallel for {0} files.'.format(len(seq.filenames)))
+        with Pool(nprocesses) as pool:
+            res = pool.map(partial(
+                process_tiff,
+                parameters = self.tracker.parameters),
+                           seq.filenames)
+        res = np.vstack(res)
+        toc = time.time() - ts
+        print('Analysed {0} frames in {1} s [{2} fps]'.format(
+            seq.nFrames, toc, seq.nFrames/toc))
+
+    def _initResults(self):
+        if not len(self.parameters['points']) == 4:
+            print('''You did not specify a region... 
+Please select 4 points around the eye.
+The order matters, the first and third points are the edges of the eye.''')
+            return False
+        self.results['reference'] = [self.parameters['points'][0],
+                                     self.parameters['points'][2]]
         self.results['ellipsePix'].fill(np.nan)
         self.results['pupilPix'].fill(np.nan)
         self.results['crPix'].fill(np.nan)
+        return True
+
+    def runDetectionVerbose(self,saveOutput = False):
+        self.running = True
+        ts = time.time()
+        if not self._initResults():
+            return 
         if saveOutput:
             # get a filename (tiff to save output)...
             saveOutputFile = QFileDialog().getSaveFileName()

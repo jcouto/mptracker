@@ -24,16 +24,6 @@ def sph2cart(az, el, r):
     z = r * np.sin(el)
     return x, y, z
 
-#def pol2cart(theta, rho):
-#    x = rho * np.cos(theta)
-#    y = rho * np.sin(theta)
-#    return x, y
-
-#def cart2pol(x, y):
-#    theta = np.arctan2(y, x)
-#    rho = np.hypot(x, y)
-#    return theta, rho
-
 def adjust_gamma(image, gamma=1.0):
 	# build a lookup table mapping the pixel values [0, 255] to
 	# their adjusted gamma values
@@ -43,7 +33,7 @@ def adjust_gamma(image, gamma=1.0):
  
 	# apply gamma correction using the lookup table
 	return cv2.LUT(image, table)
-    
+
 def computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = None):
     ''' diam = computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = 'medfilt')
         ellipsePix is a Nx2 array (short_axis,long_axis)
@@ -120,6 +110,16 @@ def sobel3x3(img,ksize = 5):
     grady = cv2.Sobel(img,cv2.CV_32F,0,1,ksize=ksize)
     mag = np.sqrt(np.power(gradx,2) + np.power(grady,2)) + 1e-16
     return mag,gradx,grady
+
+#def pol2cart(theta, rho):
+#    x = rho * np.cos(theta)
+#    y = rho * np.sin(theta)
+#    return x, y
+
+#def cart2pol(x, y):
+#    theta = np.arctan2(y, x)
+#    rho = np.hypot(x, y)
+#    return theta, rho
 
 
 #############################################################################
