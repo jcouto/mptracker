@@ -399,22 +399,8 @@ class MPTrackerWindow(QMainWindow):
             return
         if not self._initResults():
             return
-        from multiprocess import Pool
-        from functools import partial
-        from .parutils import process_tiff
-        nprocesses = 12
-        ts = time.time()
-        print('Starting parallel for {0} files.'.format(len(seq.filenames)))
-        with Pool(nprocesses) as pool:
-            res = pool.map(partial(
-                process_tiff,
-                parameters = self.tracker.parameters),
-                           seq.filenames)
-        res = np.vstack(res)
-        toc = time.time() - ts
-        print('Analysed {0} frames in {1} s [{2} fps]'.format(
-            seq.nFrames, toc, seq.nFrames/toc))
-
+        from .parutils import par_process_tiff
+        res = par_process_tiff(seq.filenames,self.tracker.parameters)
     def _initResults(self):
         if not len(self.parameters['points']) == 4:
             print('''You did not specify a region... 

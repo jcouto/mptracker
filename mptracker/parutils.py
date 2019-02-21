@@ -1,6 +1,6 @@
 import cv2
 from tifffile import imread
-from multiprocess import Pool,cpu_count
+from multiprocessing import Pool,cpu_count
 from functools import partial
 from time import time as tic
 import numpy as np
@@ -24,7 +24,7 @@ Process a tiff file with mptracker given parameters
 
 def par_process_tiff(filenames, parameters,
                      verbose = True,
-                     nprocesses = cpu_count()):
+                     nprocesses = int(cpu_count())):
     '''
 Process a set of tiff files in parallel given tracker parameters
     '''
