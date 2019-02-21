@@ -60,8 +60,8 @@ class MptrackerDisplay(QWidget):
                              frame.strides[0], QImage.Format_RGB888)
         self.scene.addPixmap(QPixmap.fromImage(self.qimage))
         self.view.fitInView(QRectF(0,0,
-                                   frame.shape[1],
-                                   frame.shape[0]),
+                                   frame.shape[0],
+                                   frame.shape[1]),
                             Qt.KeepAspectRatio)
         self.scene.update()
 

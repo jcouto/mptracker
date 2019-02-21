@@ -13,8 +13,6 @@ from os.path import join as pjoin
 import numpy as np
 from glob import glob
 from tifffile import TiffFile,imread
-from pims import NorpixSeq
-import h5py as h5
 from tempfile import mkdtemp
 from shutil import copyfile
 import cv2 # For reading 16bit tif
@@ -236,6 +234,7 @@ class NorpixFile(object):
         '''Wrapper to norpix seq files'''
         self.path = os.path.dirname(targetpath)
         self.filenames = [targetpath]
+        from pims import NorpixSeq
         self.files = [NorpixSeq(f) for f in self.filenames]
         framesPerFile = []
         for f in self.files:

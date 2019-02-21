@@ -400,6 +400,7 @@ class MPTrackerWindow(QMainWindow):
         if not self._initResults():
             return
         from .parutils import par_process_tiff
+        print('Starting the parallel run.')
         res = par_process_tiff(seq.filenames,self.tracker.parameters)
     def _initResults(self):
         if not len(self.parameters['points']) == 4:
