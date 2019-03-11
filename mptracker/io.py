@@ -34,6 +34,7 @@ class JsonEncoder(json.JSONEncoder):
 def createResultsFile(filename,nframes,npoints = 4,MPIO = False):
     if not os.path.isdir(os.path.dirname(filename)):
         os.makedirs(os.path.dirname(filename))
+    import h5py as h5
     if MPIO:
         f = h5.File(filename, 'w', driver='mpio', comm=MPI.COMM_WORLD)
     else:

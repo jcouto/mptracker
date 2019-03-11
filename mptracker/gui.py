@@ -402,6 +402,20 @@ class MPTrackerWindow(QMainWindow):
         from .parutils import par_process_tiff
         print('Starting the parallel run.')
         res = par_process_tiff(seq.filenames,self.tracker.parameters)
+        self.results['ellipsePix'][:,:2] = np.array([r[2] for r in res])
+        self.results['ellipsePix'][:,2:] = np.array([r[3] for r in res])
+        self.results['pupilPix'][:,:] = np.array([r[1] for r in res])
+        self.results['crPix'][:,:] = np.array([r[0] for r in res])
+        if self.resultfile is None:
+            try:
+                self.resultfile = str(QFileDialog().getSaveFileName()[0])
+            except:
+                self.resultfile = ''
+        self.resultfile = str(self.resultfile)
+        res = exportResultsToHDF5(self.resultfile,
+                                  self.parameters,
+                                  self.results)            
+        return 
     def _initResults(self):
         if not len(self.parameters['points']) == 4:
             print('''You did not specify a region... 
@@ -413,6 +427,7 @@ The order matters, the first and third points are the edges of the eye.''')
         self.results['ellipsePix'].fill(np.nan)
         self.results['pupilPix'].fill(np.nan)
         self.results['crPix'].fill(np.nan)
+
         return True
 
     def runDetectionVerbose(self,saveOutput = False):
