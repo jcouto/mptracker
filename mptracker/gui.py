@@ -12,47 +12,18 @@ import cv2
 #import matplotlib.pyplot as plt
 # Qt imports
 try:
-    from PyQt5.QtWidgets import (QWidget,
-                                 QApplication,
-                                 QGridLayout,
-                                 QFormLayout,
-                                 QCheckBox,
-                                 QTextEdit,
-                                 QSlider,
-                                 QPushButton,
-                                 QLabel,
-                                 QGraphicsView,
-                                 QGraphicsScene,
-                                 QGraphicsItem,
-                                 QGraphicsLineItem,
-                                 QGroupBox,
+    from PyQt5.QtWidgets import (QApplication,
                                  QDockWidget,
                                  QVBoxLayout,
                                  QMainWindow,
-                                 QTableWidget,
                                  QFileDialog)
-    from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor
-    from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
+    from PyQt5.QtCore import Qt
 except:
     from PyQt4.QtGui import (QWidget,
+                             QDockWidget,
                              QApplication,
-                             QGridLayout,
-                             QFormLayout,
-                             QCheckBox,
-                             QTextEdit,
-                             QSlider,
-                             QPushButton,
-                             QLabel,
-                             QGraphicsView,
-                             QGraphicsScene,
-                             QGraphicsItem,
-                             QGraphicsLineItem,
-                             QGroupBox,
-                             QTableWidget,
-                             QFileDialog,
-                             QImage,
-                             QPixmap)
-    from PyQt4.QtCore import Qt,QSize,QRectF,QLineF,QPointF
+                             QFileDialog)
+    from PyQt4.QtCore import Qt
 
 import pylab as plt
 plt.matplotlib.style.use('ggplot')
@@ -122,6 +93,7 @@ class MPTrackerWindow(QMainWindow):
         self.startFrame = 0
         #self.endFrame = self.imgstack.nFrames
         self.initUI()
+        self.processFrame(self.wFrame.value())
         self.update()
 
     def initUI(self):
@@ -226,22 +198,6 @@ class MPTrackerWindow(QMainWindow):
         else:
             self.cropPoints = []
 
-    def setImage(self,image):
-        self.scene.clear()
-        frame = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        # Draw region of interest
-        #pts = self.parameters['points']
-        #if len(self.parameters['points']) > 2:
-        #    pts = np.array(pts).reshape((-1,1,2))
-        #cv2.polylines(frame,[pts],True,(0,255,255))
-        self.qimage = QImage(frame, frame.shape[1], frame.shape[0],
-                             frame.strides[0], QImage.Format_RGB888)
-        self.scene.addPixmap(QPixmap.fromImage(self.qimage))
-        self.display.view.fitInView(QRectF(0,0,
-                                   frame.shape[1],
-                                   frame.shape[0]),
-                            Qt.KeepAspectRatio)
-        self.scene.update()
     def updateParam(self):
         self.processFrame(int(self.wFrame.value()))
     # Update
@@ -270,6 +226,7 @@ class MPTrackerWindow(QMainWindow):
             else:
                 image = self.tracker.img
             self.display.setImage(image)
+            self.display.wNFrames.setText(str(f))
         self.app.processEvents()
 
     def keyPressEvent(self, e):
@@ -331,20 +288,29 @@ class MPTrackerWindow(QMainWindow):
         from .parutils import par_process_tiff
         print('Starting the parallel run.')
         res = par_process_tiff(seq.filenames,self.tracker.parameters)
+
         self.results['ellipsePix'][:,:2] = np.array([r[2] for r in res])
         self.results['ellipsePix'][:,2:] = np.array([r[3] for r in res])
         self.results['pupilPix'][:,:] = np.array([r[1] for r in res])
         self.results['crPix'][:,:] = np.array([r[0] for r in res])
+        nanidx = find_outliers(self.results['pupilPix'][:,0])
+        if len(nanidx):
+            print('Removing {0} outliers.'.format(len(nanidx)))
+        self.results['ellipsePix'][nanidx,:] = np.nan
+        self.results['pupilPix'][nanidx,:] = np.nan
+
         if self.resultfile is None:
             try:
-                self.resultfile = str(QFileDialog().getSaveFileName()[0])
+                answer = QFileDialog().getSaveFileName()
+                self.resultfile = str(answer[0])
             except:
                 self.resultfile = None
         self.resultfile = str(self.resultfile)
         res = exportResultsToHDF5(self.resultfile,
                                   self.parameters,
                                   self.results)            
-        return 
+        return
+    
     def _initResults(self):
         if not len(self.parameters['points']) == 4:
             print('''You did not specify a region... 
@@ -356,7 +322,6 @@ The order matters, the first and third points are the edges of the eye.''')
         self.results['ellipsePix'].fill(np.nan)
         self.results['pupilPix'].fill(np.nan)
         self.results['crPix'].fill(np.nan)
-
         return True
 
     def runDetectionVerbose(self,saveOutput = False):
@@ -384,6 +349,11 @@ The order matters, the first and third points are the edges of the eye.''')
                     break
         print('Done {0} frames in {1:3.1f} min'.format(f-self.startFrame,
                                                        (time.time()-ts)/60.))
+        nanidx = find_outliers(self.results['pupilPix'][:,0])
+        if len(nanidx):
+            print('Removing {0} outliers.'.format(len(nanidx)))
+        self.results['ellipsePix'][nanidx,:] = np.nan
+        self.results['pupilPix'][nanidx,:] = np.nan
         if self.resultfile is None:
             try:
                 self.resultfile = str(QFileDialog().getSaveFileName()[0])

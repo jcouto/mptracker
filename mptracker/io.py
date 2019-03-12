@@ -60,41 +60,45 @@ def createResultsFile(filename,nframes,npoints = 4,MPIO = False):
 def exportResultsToHDF5(resultfile,
                         parameters,
                         results):
+    '''
+    TODO: Make this simpler...
+    '''
     fname,ext = os.path.splitext(resultfile)
     if len(ext)==0:
         print('File has no extension:'+resultfile + ' Crack...')
         return None
-    if not os.path.isfile(resultfile):
-        diam = computePupilDiameterFromEllipse(results['ellipsePix'],
-                                               computeConversionFactor(
-                                                   results['reference']))
-        if parameters['crTrack']:
-            az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
-                                                  results['reference'],
-                                                  results['crPix'])
-        else:
-            az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
-                                                  results['reference'])
-            
-        fd = createResultsFile(resultfile,
-                               len(diam),
-                               npoints = len(parameters['points']))
-        fd['ellipsePix'][:] = results['ellipsePix'].astype(np.float32)
-        fd['positionPix'][:] = results['pupilPix'].astype(np.float32)
-        fd['crPix'][:] = results['crPix'].astype(np.float32)
-        fd['diameter'][:] = diam.astype(np.float32)
-        fd['azimuth'][:] = az.astype(np.float32)
-        fd['elevation'][:] = el.astype(np.float32)
-        fd['theta'][:] = theta.astype(np.float32)
-        fd['pointsPix'][:] = np.array(parameters['points'])
-        fd.flush()
-        fd.close()
-        saveTrackerParameters(resultfile,parameters)
-        return True
-    
+    if os.path.isfile(resultfile):
+        print('Overwriting file: {0}'.format(resultfile))
+    diam = computePupilDiameterFromEllipse(
+        results['ellipsePix'],
+        computeConversionFactor(results['reference'],
+                                2.*parameters['eye_radius_mm']))
+    if parameters['crTrack']:
+        az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
+                                              results['reference'],
+                                              results['crPix'],
+                                              eyeDiameterEstimate =
+                                              2*parameters['eye_radius_mm'])
     else:
-        print("File {0} already exists. Delete it first.".format(resultfile))
-        return False
+        az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
+                                              results['reference'],
+                                              eyeDiameterEstimate =
+                                              2*parameters['eye_radius_mm'])
+    fd = createResultsFile(resultfile,
+                           len(diam),
+                           npoints = len(parameters['points']))
+    fd['ellipsePix'][:] = results['ellipsePix'].astype(np.float32)
+    fd['positionPix'][:] = results['pupilPix'].astype(np.float32)
+    fd['crPix'][:] = results['crPix'].astype(np.float32)
+    fd['diameter'][:] = diam.astype(np.float32)
+    fd['azimuth'][:] = az.astype(np.float32)
+    fd['elevation'][:] = el.astype(np.float32)
+    fd['theta'][:] = theta.astype(np.float32)
+    fd['pointsPix'][:] = np.array(parameters['points'])
+    fd.flush()
+    fd.close()
+    saveTrackerParameters(resultfile,parameters)
+    return True
 
 def saveTrackerParameters(paramfile,parameters):
     fname,ext = os.path.splitext(paramfile)

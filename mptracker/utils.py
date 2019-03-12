@@ -9,6 +9,7 @@ import os
 import numpy as np
 import scipy.signal as signal
 import cv2
+from scipy.interpolate import interp1d
 
 def cart2sph(x, y, z):
     hxy = np.hypot(x, y)
@@ -34,7 +35,9 @@ def adjust_gamma(image, gamma=1.0):
 	# apply gamma correction using the lookup table
 	return cv2.LUT(image, table)
 
-def computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = None):
+def computePupilDiameterFromEllipse(ellipsePix,
+                                    conversionFactor = None,
+                                    smoothing = None):
     ''' diam = computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothing = 'medfilt')
         ellipsePix is a Nx2 array (short_axis,long_axis)
         Compute the pupil diameter as the diameter of a circle with the same area as the fitted ellipse.
@@ -50,25 +53,26 @@ def computePupilDiameterFromEllipse(ellipsePix,conversionFactor = None, smoothin
         return medfilt(diam)
     elif smoothing.lower() == 'sgolay':
         from scipy.signal import savgol_filter
-        return savgol_filter(diam, window_length = 5, polyorder = 1, mode='nearest')
+        return savgol_filter(diam, window_length = 5,
+                             polyorder = 1, mode='nearest')
     
 def computeConversionFactor(ref,estimate = 6.0):
     return float(estimate)/np.sqrt(np.diff([ref[0][0],ref[1][0]])**2. + np.diff([ref[0][1],ref[1][1]])**2.)
-
-
 
 def convertPixelToEyeCoords(pupilPix,
                             eyeCorners,
                             crPix = None,
                             eyeDiameterEstimate = 6.0):
-    reference = [eyeCorners[0][0] + np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
-                 eyeCorners[0][1] + np.diff([eyeCorners[0][1],eyeCorners[1][1]])/2.]
+    reference = [eyeCorners[0][0] +
+                 np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
+                 eyeCorners[0][1] +
+                 np.diff([eyeCorners[0][1],eyeCorners[1][1]])/2.]
     pPix = pupilPix.copy()
     # Correct for movement of the entire eye.
     if not crPix is None:
         pPix[:,0] = pPix[:,0] - (crPix[:,0] - (crPix[~np.isnan(crPix[:,0]),0][0]))
         pPix[:,1] = pPix[:,1] - (crPix[:,1] - (crPix[~np.isnan(crPix[:,1]),1][0]))
-    cFactor = computeConversionFactor(eyeCorners)
+    cFactor = computeConversionFactor(eyeCorners,eyeDiameterEstimate)
     [az,el,theta] = cart2sph((pPix[:,0]-reference[0])*cFactor,
                              (pPix[:,1]-reference[1])*cFactor,
                              eyeDiameterEstimate/2.)
@@ -99,7 +103,7 @@ def medfilt(x, k = 5):
         y[-j:,-(i+1)] = x[-1]
     return np.nanmedian(y, axis=1)
 
-def find_outliers(x,errthresh = 0.05,medfiltlen = 51):
+def find_outliers(x,errthresh = 0.05,medfiltlen = 101):
     '''
     Find outliers by comparing to a median filtered version of the signal x
     '''
@@ -110,6 +114,11 @@ def find_outliers(x,errthresh = 0.05,medfiltlen = 51):
     err = np.abs(x[idx]-med)/med
     return idx[err>errthresh]
 
+def interp_nans(x):
+    t = np.arange(len(x))
+    return interp1d(t[~np.isnan(x)],x[~np.isnan(x)],
+                    bounds_error = False,
+                    fill_value='extrapolate')(t)
 
 def sobel3x3(img,ksize = 5):
     """

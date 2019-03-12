@@ -32,7 +32,7 @@ class MptrackerDisplay(QWidget):
         self.wNFrames = QLabel('')
         self.wNFrames.setMaximumHeight(25)
         self.wNFrames.setMaximumWidth(200)
-        grid.addRow(QLabel('Number of frames:'),self.wNFrames)
+        grid.addRow(QLabel('Frame number:'),self.wNFrames)
         
         self.wFrame = QSlider(Qt.Horizontal)
         self.wFrame.valueChanged.connect(self.processFrame)
@@ -60,8 +60,8 @@ class MptrackerDisplay(QWidget):
                              frame.strides[0], QImage.Format_RGB888)
         self.scene.addPixmap(QPixmap.fromImage(self.qimage))
         self.view.fitInView(QRectF(0,0,
-                                   frame.shape[0],
-                                   frame.shape[1]),
+                                   frame.shape[1],
+                                   frame.shape[0]),
                             Qt.KeepAspectRatio)
         self.scene.update()
 

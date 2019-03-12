@@ -12,7 +12,8 @@ def plot_results(results,parameters,img = None,ii = 100):
         ax = fig.add_axes([0.025,0.05,0.25,0.95],aspect='equal')
         ax.imshow(img,cmap='gray',aspect='equal')
     if not 'reference' in results.keys():
-        results['reference'] = [parameters['points'][0],parameters['points'][2]]
+        results['reference'] = [parameters['points'][0],
+                                parameters['points'][2]]
     eyeCorners  = results['reference']
     reference = [eyeCorners[0][0] +
                  np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
@@ -39,18 +40,24 @@ def plot_results(results,parameters,img = None,ii = 100):
     ax.axis('tight');
     
     axel = fig.add_axes([0.36,0.16,0.6,0.2])
-    axdiam = fig.add_axes([0.36,0.76,0.6,0.2])#,sharex=axel)
-    axaz = fig.add_axes([0.36,0.46,0.6,0.2])#,sharex=axel)
+    axdiam = fig.add_axes([0.36,0.76,0.6,0.2],sharex=axel)
+    axaz = fig.add_axes([0.36,0.46,0.6,0.2],sharex=axel)
     
-    diam = computePupilDiameterFromEllipse(results['ellipsePix']/2.,
-                                           computeConversionFactor(results['reference']))
+    diam = computePupilDiameterFromEllipse(
+        results['ellipsePix']/2.,
+        computeConversionFactor(results['reference'],
+                                2*parameters['eye_radius_mm']))
     if parameters['crTrack']:
-        az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
-                                              results['reference'],
-                                              results['crPix'])
+        az,el,theta = convertPixelToEyeCoords(
+            results['pupilPix'],
+            results['reference'],
+            results['crPix'],
+            eyeDiameterEstimate =2*parameters['eye_radius_mm'])
     else:
-        az,el,theta = convertPixelToEyeCoords(results['pupilPix'],
-                                              results['reference'])
+        az,el,theta = convertPixelToEyeCoords(
+            results['pupilPix'],
+            results['reference'],
+            eyeDiameterEstimate =2*parameters['eye_radius_mm'])
 
     axdiam.plot(medfilt(diam));axdiam.set_xticklabels([])
     axaz.plot(medfilt(az));axaz.set_xticklabels([]);
