@@ -49,11 +49,11 @@ def createResultsFile(filename,nframes,npoints = 4,MPIO = False):
                      shape=(nframes,),compression = 'gzip')
     f.create_dataset('ellipsePix',dtype = np.float32,
                      shape=(nframes,5),compression = 'gzip')
-    f.create_dataset('positionPix',dtype = np.int,
+    f.create_dataset('positionPix',dtype = np.float32,
                      shape=(nframes,2),compression = 'gzip')
-    f.create_dataset('crPix',dtype = np.int,
+    f.create_dataset('crPix',dtype = np.float32,
                      shape=(nframes,2),compression = 'gzip')
-    f.create_dataset('pointsPix',dtype = np.int,
+    f.create_dataset('pointsPix',dtype = np.float32,
                      shape=(npoints,2),compression = 'gzip')
     return f
 
@@ -79,9 +79,9 @@ def exportResultsToHDF5(resultfile,
         fd = createResultsFile(resultfile,
                                len(diam),
                                npoints = len(parameters['points']))
-        fd['ellipsePix'][:] = results['ellipsePix']
-        fd['positionPix'][:] = results['pupilPix']
-        fd['crPix'][:] = results['crPix']
+        fd['ellipsePix'][:] = results['ellipsePix'].astype(np.float32)
+        fd['positionPix'][:] = results['pupilPix'].astype(np.float32)
+        fd['crPix'][:] = results['crPix'].astype(np.float32)
         fd['diameter'][:] = diam.astype(np.float32)
         fd['azimuth'][:] = az.astype(np.float32)
         fd['elevation'][:] = el.astype(np.float32)

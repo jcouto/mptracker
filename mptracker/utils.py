@@ -99,6 +99,17 @@ def medfilt(x, k = 5):
         y[-j:,-(i+1)] = x[-1]
     return np.nanmedian(y, axis=1)
 
+def find_outliers(x,errthresh = 0.05,medfiltlen = 51):
+    '''
+    Find outliers by comparing to a median filtered version of the signal x
+    '''
+    assert medfiltlen % 2 == 1
+    idx = np.where(~np.isnan(x))[0]
+    from scipy.signal import medfilt
+    med = medfilt(x[idx],medfiltlen)
+    err = np.abs(x[idx]-med)/med
+    return idx[err>errthresh]
+
 
 def sobel3x3(img,ksize = 5):
     """
