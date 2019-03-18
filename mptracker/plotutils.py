@@ -69,12 +69,12 @@ def plot_results(results,parameters,img = None,ii = 100):
     for a in [axdiam,axaz,axel]:
         cleanAx(a)
         a.axis('tight')
-    axel.set_ylim(np.array([-2.5,2.5])*np.nanstd(el) +
-                  np.nanmedian(el))
-    axaz.set_ylim(np.array([-2.5,2.5])*np.nanstd(az) +
-                  np.nanmedian(az))
-    axdiam.set_ylim(np.array([-2.5,2.5])*np.nanstd(diam) +
-                    np.nanmedian(diam))
+    #axel.set_ylim(np.array([-2.5,2.5])*np.nanstd(el) +
+    #              np.nanmedian(el))
+    #axaz.set_ylim(np.array([-2.5,2.5])*np.nanstd(az) +
+    #              np.nanmedian(az))
+    #axdiam.set_ylim(np.array([-2.5,2.5])*np.nanstd(diam) +
+    #                np.nanmedian(diam))
     # axdiam.set_ylim([0,2.])
     # axaz.set_ylim([0,3.7])
     axel.set_xlabel('Frame number',color='black')
