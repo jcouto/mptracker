@@ -77,12 +77,15 @@ class MPTrackerWindow(QMainWindow):
         self.parameters['sequentialPupilMode'] = False
         self.resultfile = resfile
         self.results = {}
-        self.results['ellipsePix'] = np.empty((self.parameters['number_frames'],5),
-                                           dtype = np.float32)
-        self.results['pupilPix'] = np.empty((self.parameters['number_frames'],2),
-                                            dtype=np.float32)
-        self.results['crPix'] = np.empty((self.parameters['number_frames'],2),
-                                         dtype = np.float32)
+        self.results['ellipsePix'] = np.empty(
+            (self.parameters['number_frames'],5),
+            dtype = np.float32)
+        self.results['pupilPix'] = np.empty(
+            (self.parameters['number_frames'],2),
+            dtype=np.float32)
+        self.results['crPix'] = np.empty(
+            (self.parameters['number_frames'],2),
+            dtype = np.float32)
         self.results['ellipsePix'].fill(np.nan)
         self.results['pupilPix'].fill(np.nan)
         self.results['crPix'].fill(np.nan)
@@ -291,13 +294,16 @@ class MPTrackerWindow(QMainWindow):
 
         self.results['ellipsePix'][:,:2] = np.array([r[2] for r in res])
         self.results['ellipsePix'][:,2:] = np.array([r[3] for r in res])
-        self.results['pupilPix'][:,:] = np.array([r[1] for r in res])
-        self.results['crPix'][:,:] = np.array([r[0] for r in res])
-        nanidx = find_outliers(self.results['pupilPix'][:,0])
-        if len(nanidx):
-            print('Removing {0} outliers.'.format(len(nanidx)))
-        self.results['ellipsePix'][nanidx,:] = np.nan
-        self.results['pupilPix'][nanidx,:] = np.nan
+        self.results['pupilPix'][:,:] = np.array([r[1] for r in res],
+                                                 dtype=np.float32)
+        self.results['crPix'][:,:] = np.array([r[0] for r in res],
+                                              dtype = np.float32)
+        for i in range(2):
+            nanidx = find_outliers(self.results['pupilPix'][:,i])
+            if len(nanidx):
+                print('Removing {0} outliers.'.format(len(nanidx)))
+            self.results['ellipsePix'][nanidx,:] = np.nan
+            self.results['pupilPix'][nanidx,:] = np.nan
 
         if self.resultfile is None:
             try:

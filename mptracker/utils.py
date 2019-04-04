@@ -67,11 +67,16 @@ def convertPixelToEyeCoords(pupilPix,
                  np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
                  eyeCorners[0][1] +
                  np.diff([eyeCorners[0][1],eyeCorners[1][1]])/2.]
-    pPix = pupilPix.copy()
+    pPix = np.zeros_like(pupilPix,dtype=np.float32)
+    pPix[:] = np.nan 
     # Correct for movement of the entire eye.
     if not crPix is None:
-        pPix[:,0] = pPix[:,0] - (crPix[:,0] - (crPix[~np.isnan(crPix[:,0]),0][0]))
-        pPix[:,1] = pPix[:,1] - (crPix[:,1] - (crPix[~np.isnan(crPix[:,1]),1][0]))
+        pPix[:,0] = pupilPix[:,0] - (crPix[:,0] - crPix[~np.isnan(crPix[:,0]),0][0])
+        pPix[:,1] = pupilPix[:,1] - (crPix[:,1] - crPix[~np.isnan(crPix[:,1]),1][0])
+    else:
+        pPix[:,0] = pupilPix[:,0]
+        pPix[:,1] = pupilPix[:,1]
+
     cFactor = computeConversionFactor(eyeCorners,eyeDiameterEstimate)
     [az,el,theta] = cart2sph((pPix[:,0]-reference[0])*cFactor,
                              (pPix[:,1]-reference[1])*cFactor,
