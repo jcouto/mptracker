@@ -275,16 +275,17 @@ class AVIFileSequence(object):
     def __init__(self,targetpath = None):
         '''Lets you access a sequence of AVI files without noticing...'''
         self.path = os.path.dirname(targetpath)
-        self.basename,extension = os.path.splitext(os.path.basename(targetpath))
-        filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
+        self.filenames = [targetpath]
+        #self.basename,extension = os.path.splitext(os.path.basename(targetpath))
+        #filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
         # Use natural sort
-        pat = re.compile('([0-9]+)')
-        self.filenames = [f for f in np.sort(filenames)]
+        #pat = re.compile('([0-9]+)')
+        #self.filenames = [f for f in np.sort(filenames)]
 #        self.filenames = [filenames[j] for j in np.lexsort(np.array([[int(i) for i in pat.findall(os.path.basename(fname))] for fname in filenames]).T)]
 
-        if not len(self.filenames):
-            print('Wrong target path: ' + pjoin(self.path,'*' + extension))
-            raise
+        #if not len(self.filenames):
+        #    print('Wrong target path: ' + pjoin(self.path,'*' + extension))
+        #    raise
         self.files = []
         framesPerFile = []
         for i,f in enumerate(self.filenames):
@@ -317,6 +318,7 @@ class AVIFileSequence(object):
         fileidx,frameidx = self.getFrameIndex(frame)
         self.files[fileidx].set(1,frameidx)
         ret,img = self.files[fileidx].read()
+        img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
         if img.dtype == np.uint16:
             img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0))
         return img
