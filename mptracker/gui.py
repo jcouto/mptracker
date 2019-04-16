@@ -41,29 +41,23 @@ class MPTrackerWindow(QMainWindow):
     def __init__(self,targetpath = None,
                  resfile = None,
                  params = None,
-                 app = None,
-                 usetmp = False):
+                 app = None):
         super(MPTrackerWindow,self).__init__()
         self.app = app
         if targetpath is None:
-            self.targetpath = QFileDialog(self).getOpenFileName()[0]
-            if not os.path.isfile(self.targetpath) or not '*' in self.targetpath:
-                print('Selected non file:'+str(self.targetpath))
+            targetpath = str(QFileDialog(self).getOpenFileName()[0])
+            print(targetpath)
+        if not '*' in targetpath:
+            if not os.path.isfile((targetpath)):
+                print('Selected non file:'+str(targetpath))
                 sys.exit()
-        else:
-            self.targetpath = os.path.abspath(targetpath)
-        if usetmp:
-            self.tmptarget = copyFilesToTmp(self.targetpath)
-            print('WARNING: At exit is not implemented yet to delete this folder. User is responsible for that.')
-            target = self.tmptarget
-        else:
-            target = self.targetpath
-        if os.path.splitext(target)[1] in ['.tif','.tiff']:
-            self.imgstack = TiffFileSequence(target)
+        self.targetpath = os.path.abspath(targetpath)
+        if os.path.splitext(self.targetpath)[1] in ['.tif','.tiff']:
+            self.imgstack = TiffFileSequence(self.targetpath)
         elif os.path.splitext(self.targetpath)[1] in ['.seq']:
-            self.imgstack = NorpixFile(target)
+            self.imgstack = NorpixFile(self.targetpath)
         elif os.path.splitext(self.targetpath)[1] in ['.avi']:
-            self.imgstack =  AVIFileSequence(target)
+            self.imgstack =  AVIFileSequence(self.targetpath)
         else:
             print('Unknown extension for:'+target)
         self.tracker = MPTracker(parameters = params,
@@ -386,10 +380,6 @@ def main():
                         type = str,
                         default=None,
                         help = 'Parameter file.')
-    parser.add_argument('--usetmp',
-                        default = False,
-                        action = 'store_true',
-                        help = 'Copy data to a temporary folder.')
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
@@ -406,8 +396,7 @@ def main():
                 params['crApprox'] = np.array(params['crApprox'])
     w = MPTrackerWindow(target,app = app,
                         params = params,
-                        resfile = args.output,
-                        usetmp=args.usetmp)
+                        resfile = args.output)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
