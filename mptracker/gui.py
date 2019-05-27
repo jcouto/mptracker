@@ -94,13 +94,6 @@ class MPTrackerWindow(QMainWindow):
         self.update()
 
     def initUI(self):
-
-        # Menu
-#        bar = self.menuBar()
-#        editmenu = bar.addMenu("Experiment")
-#        editmenu.addAction("New")
-#        editmenu.triggered[QAction].connect(self.experimentMenuTrigger)
- #       self.setWindowTitle("LabCams")
         self.tabs = []
         self.tabs.append(QDockWidget("Parameters",self))
         layout = QVBoxLayout()
@@ -118,28 +111,6 @@ class MPTrackerWindow(QMainWindow):
             Qt.RightDockWidgetArea and Qt.TopDockWidgetArea,
             self.tabs[-1])
 
-#        grid = QGridLayout()
-
-#        self.wNFrames = QLabel('')
-#        self.wNFrames.setMaximumHeight(25)
-#        self.wNFrames.setMaximumWidth(200)
-#        paramGrid.addRow(QLabel('Number of frames:'),self.wNFrames)
-
-#        self.wFrame = QSlider(Qt.Horizontal)
-#        self.wFrame.valueChanged.connect(self.processFrame)
-#        self.wFrame.setMaximum(self.imgstack.nFrames-1)
-#        self.wFrame.setMinimum(0)
-#        self.wFrame.setValue(0)
-
-#        grid.addWidget(self.wFrame,0,2,1,4)
-#        # images and plots
-#        img = self.imgstack.get(int(self.wFrame.value()))
-#        cr_position,pupil_pos,pupil_radius,pupil_ellipse_par = self.tracker.apply(img)
-#        self.scene = QGraphicsScene()
-#        self.view = QGraphicsView(self.scene)
-#        self.setImage(self.tracker.img)
-        self.display.view.mouseReleaseEvent = self.selectPoints
-#        grid.addWidget(self.view,1,2,6,5)
         ####################
         self.wFrame = self.display.wFrame
         self.wFrame.setMaximum(self.imgstack.nFrames-1)
@@ -149,7 +120,6 @@ class MPTrackerWindow(QMainWindow):
         # window geometry
         self.setWindowTitle('mOUSEpUPILtracker')
         self.show()
-#        self.updateGUI()
         self.running = False
 
     def setStartFrame(self,event):
@@ -166,26 +136,6 @@ class MPTrackerWindow(QMainWindow):
         points = self.tracker.ROIpoints
         self.tracker.parameters['pupilApprox'] = None
         self.paramwidget.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
-
-    def selectPoints(self,event):
-        pt = self.display.view.mapToScene(event.pos())
-        if event.button() == 1:
-            x = pt.x()
-            y = pt.y()
-            self.parameters['points'].append([int(round(x)),int(round(y))])
-            img = self.imgstack.get(int(self.wFrame.value()))
-            height,width = img.shape
-            self.tracker.setROI(self.parameters['points'])
-            self.putPoints()
-            self.updateCropPoints()
-        elif event.button() == 2:
-            x = pt.x()
-            y = pt.y()
-            img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints,
-                                                     self.tracker.img)
-            pts = [int(round(x))+x1,int(round(y))+y1]
-            self.tracker.parameters['crApprox'] = pts
-        self.processFrame(self.wFrame.value())
 
     def updateCropPoints(self):
         if len(self.tracker.ROIpoints) >= 4:
@@ -212,8 +162,6 @@ class MPTrackerWindow(QMainWindow):
             self.results['ellipsePix'][f,2:] = pupil_ellipse_par
             self.results['pupilPix'][f,:] = pupil_pos
             self.results['crPix'][f,:] = cr_pos
-            #self.wNFrames.setText(str(f) +
-            #                      '//' + str(self.parameters['number_frames']))
             if (len(self.tracker.ROIpoints)>=4  and
                 len(self.cropPoints) == 4 and
                 not self.tracker.concatenateBinaryImage):

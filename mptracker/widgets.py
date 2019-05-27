@@ -20,13 +20,12 @@ from PyQt5.QtWidgets import (QWidget,
                              QTableWidget,
                              QTabWidget,
                              QFileDialog)
-from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor
+from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor,QFont
 from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
 
 class MptrackerDisplay(QWidget):
     def __init__(self,img = None):
         super(MptrackerDisplay,self).__init__()
-
         grid = QFormLayout()
         
         self.wNFrames = QLabel('')
@@ -41,29 +40,35 @@ class MptrackerDisplay(QWidget):
         self.wFrame.setValue(0)
         grid.addRow(self.wFrame)
         # images and plots
-        self.scene = QGraphicsScene()
-        self.view = QGraphicsView(self.scene)
+        self._init_pg()
         self.setImage(img)
-        grid.addRow(self.view)
+        grid.addRow(self.win)
         self.setLayout(grid)
+
+    def _init_pg(self):
+        import pyqtgraph as pg
+        pg.setConfigOption('background', [200,200,200])
+        pg.setConfigOptions(imageAxisOrder='row-major')
+        self.win = pg.GraphicsLayoutWidget()
+        p1 = self.win.addPlot(title="")
+        self.imgview = pg.ImageItem(useOpenGL=True)
+        p1.getViewBox().invertY(True)
+        p1.getViewBox().invertX(True)
+        p1.hideAxis('left')
+        p1.hideAxis('bottom')
+        p1.addItem(self.imgview)
+
+        self.text = pg.TextItem('hello',color = [200,100,100],anchor = [1,0])
+        p1.addItem(self.text)
+        b=QFont()
+        b.setPixelSize(24)
+        self.text.setFont(b)
+        self.p1 = p1
+
     def processFrame(self):
         pass
     def setImage(self,image):
-        self.scene.clear()
-        frame = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        # Draw region of interest
-        #pts = self.parameters['points']
-        #if len(self.parameters['points']) > 2:
-        #    pts = np.array(pts).reshape((-1,1,2))
-        #cv2.polylines(frame,[pts],True,(0,255,255))
-        self.qimage = QImage(frame, frame.shape[1], frame.shape[0], 
-                             frame.strides[0], QImage.Format_RGB888)
-        self.scene.addPixmap(QPixmap.fromImage(self.qimage))
-        self.view.fitInView(QRectF(0,0,
-                                   frame.shape[1],
-                                   frame.shape[0]),
-                            Qt.KeepAspectRatio)
-        self.scene.update()
+        self.imgview.setImage(image)
 
 class MptrackerParameters(QWidget):
     def __init__(self,tracker,image = np.ones((75,75),dtype=np.uint8)):
