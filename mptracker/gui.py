@@ -100,7 +100,7 @@ class MPTrackerWindow(QMainWindow):
         self.display = MptrackerDisplay(self.tracker.img)
         self.paramwidget = MptrackerParameters(self.tracker,
                                                self.imgstack.get(0),
-                                               self.display)
+                                               eyewidget = self.display.roi_selection)
         self.tabs[-1].setWidget(self.paramwidget)
         self.tabs[-1].setFloating(False)
         self.addDockWidget(

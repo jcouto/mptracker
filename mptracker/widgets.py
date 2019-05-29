@@ -66,23 +66,12 @@ class MptrackerDisplay(QWidget):
                                 color = [200,100,100],
                                 anchor = [1,0])
         p1.addItem(self.text)
-        self.roi_corners = pg.LineSegmentROI(([100,200],[200,200]),pen = (1,9))
-        self.roi_lid = pg.LineSegmentROI(([150,250],[150,150]),pen = (2,9))
-        self.roi_points_selected = None
-        def updateroi(val):
-            c = self.roi_corners.getHandles() + self.roi_lid.getHandles()
-            c = [c[i] for i in [0,2,1,3]]
-            self.roi_points_selected = np.stack([np.array(p.pos()).astype(int) for p in c])
-        self.roi_corners.sigRegionChanged.connect(updateroi)
-        self.roi_lid.sigRegionChanged.connect(updateroi)
-
+        self.roi_selection = EyeROIWidget()
         b=QFont()
         b.setPixelSize(24)
         self.text.setFont(b)
         elements = [self.imgview,
-                    self.text,
-                    self.roi_corners,
-                    self.roi_lid]
+                    self.text] + self.roi_selection.items()
         [p1.addItem(e) for e in elements]
         self.p1 = p1
 
@@ -95,12 +84,48 @@ class MptrackerDisplay(QWidget):
             return
         c = ellipseToContour(pos,radius,radius,0)
         self.pltPup.setData(x = c[:,0,1],y = c[:,0,0])
+
+class EyeROIWidget():
+    def __init__(self,locations = None):
+        import pyqtgraph as pg
+        if not locations is None:
+            p1 = locations[0]
+            p2 = locations[2]
+            p3 = locations[1]
+            p4 = locations[3]
+        else:
+            p1,p2 = ([100,200],[200,200])
+            p3,p4 = ([150,250],[150,150])
+        self.roi_corners = pg.LineSegmentROI((p1,p2),pen = (1,9))
+        self.roi_lid = pg.LineSegmentROI((p3,p4),pen = (2,9))
+        self.roi_points_selected = None
+        def updateroi(val):
+            c = self.roi_corners.getHandles() + self.roi_lid.getHandles()
+            c = [c[i] for i in [0,2,1,3]]
+            self.roi_points_selected = np.stack([
+                np.array(p.pos()).astype(int) for p in c])
+        self.roi_corners.sigRegionChanged.connect(updateroi)
+        self.roi_lid.sigRegionChanged.connect(updateroi)
+    def items(self):
+        return [self.roi_corners,self.roi_lid]
+    def get(self):
+        return self.roi_points_selected
+    def set(self,points):
+        p1 = points[0]
+        p2 = points[2]
+        p3 = points[1]
+        p4 = points[3]
+        c = self.roi_corners.getHandles() + self.roi_lid.getHandles()
+        c[0].setPos(*p1)
+        c[1].setPos(*p2)
+        c[2].setPos(*p3)
+        c[3].setPos(*p4)
         
 class MptrackerParameters(QWidget):
     def __init__(self,tracker,
                  image = np.ones((75,75),
                                  dtype=np.uint8),
-                 displaywidget = None,
+                 eyewidget = None,
 ):
         super(MptrackerParameters,self).__init__()
         self.tracker = tracker
@@ -261,10 +286,15 @@ class MptrackerParameters(QWidget):
         self.wPoints = QLabel('nan,nan \n nan,nan \n nan,nan \n nan,nan\n')
         pGrid4.addRow(QLabel('ROI points:'),self.wPoints)
         self.wPoints.mouseDoubleClickEvent = self.clearPoints
-
-        if not displaywidget is None:
+        def setpoints(points):
+            self.wPoints.setText(
+                ' \n'.join([','.join([str(w) for w in p]) for p in points]))
+        if not eyewidget is None:
+            if len(self.parameters['points']) == 4:
+                eyewidget.set(self.parameters['points'])
+                setpoints(self.parameters['points'])
             def updateROI(val):
-                points = displaywidget.roi_points_selected
+                points = eyewidget.get()
                 if not points is None:
                     p = []
                     for t in points:
@@ -273,8 +303,7 @@ class MptrackerParameters(QWidget):
                     self.parameters['points'] = p
                     self.tracker.setROI(self.parameters['points'])
                     self.tracker.parameters['pupilApprox'] = None
-                    self.wPoints.setText(
-                        ' \n'.join([','.join([str(w) for w in p]) for p in points]))
+                    setpoints(points)
             button = QPushButton('Update ROI')
             button.clicked.connect(updateROI)
             pGrid4.addRow(button)
@@ -347,18 +376,12 @@ class MptrackerParameters(QWidget):
                                frame.strides[0], QImage.Format_RGB888)
         self.wROIscene.addPixmap(QPixmap.fromImage(qimage))
         self.wROIscene.update()
-
         
     def clearPoints(self,event):
         self.tracker.ROIpoints = []
         self.parameters['points'] = []
-        self.putPoints()
+        self.tracker.parameters['pupilApprox'] = None
         self.update()
-        
-#    def putPoints(self):
-#        points = self.tracker.ROIpoints
-#        self.tracker.parameters['pupilApprox'] = None
-#        self.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
         
     def updateTrackerOutputBinaryImage(self,state):
         self.tracker.concatenateBinaryImage = state
@@ -433,6 +456,7 @@ class MptrackerParameters(QWidget):
             print(self.tracker.parameters['eye_radius_mm'])
         except:
             print('Need to insert a float in the radius.')
+        '''
     def selectPoints(self,event):
         pt = self.wROIview.mapToScene(event.pos())
         if event.button() == 1:
@@ -450,6 +474,7 @@ class MptrackerParameters(QWidget):
             img,(x1, y1, w, h) = cropImageWithCoords(self.tracker.ROIpoints, self.tracker.img)
             pts = [int(round(x))+x1,int(round(y))+y1]
             self.tracker.parameters['crApprox'] = pts
+    '''
     def update(self):
         print('Pass...')
 
@@ -464,7 +489,7 @@ class MptrackerParameters(QWidget):
         if type(paramfile) is tuple:
             paramfile = paramfile[0]
         from .io import saveTrackerParameters
-        res = saveTrackerParameters(paramfile,parameters)
+        res = saveTrackerParameters(paramfile,self.parameters)
         print('Saved parameters [{0}].'.format(paramfile))        
 
         
