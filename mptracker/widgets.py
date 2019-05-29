@@ -58,10 +58,10 @@ class MptrackerDisplay(QWidget):
         p1.hideAxis('left')
         p1.hideAxis('bottom')
         self.imgview = pg.ImageItem(useOpenGL=useOpenGL)
-        self.pltPup = pg.PlotCurveItem([np.nan,np.nan],
-                                       [np.nan,np.nan])
+        #self.pltPup = pg.PlotCurveItem([np.nan,np.nan],
+        #                               [np.nan,np.nan])
         
-        p1.addItem(self.pltPup)
+        #p1.addItem(self.pltPup)
         self.text = pg.TextItem('hello',
                                 color = [200,100,100],
                                 anchor = [1,0])
@@ -304,6 +304,7 @@ class MptrackerParameters(QWidget):
                     self.tracker.setROI(self.parameters['points'])
                     self.tracker.parameters['pupilApprox'] = None
                     setpoints(points)
+                    self.update()
             button = QPushButton('Update ROI')
             button.clicked.connect(updateROI)
             pGrid4.addRow(button)

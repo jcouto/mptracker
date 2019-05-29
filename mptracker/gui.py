@@ -44,6 +44,8 @@ class MPTrackerWindow(QMainWindow):
                  app = None):
         super(MPTrackerWindow,self).__init__()
         self.app = app
+        self.runningDownsampleFactor = 15
+        self.running = False
         if targetpath is None:
             targetpath = str(QFileDialog(self).getOpenFileName()[0])
             print(targetpath)
@@ -157,13 +159,13 @@ class MPTrackerWindow(QMainWindow):
             if (len(self.tracker.ROIpoints)>=4 and not self.tracker.concatenateBinaryImage):
                 if len(self.tracker.parameters['imagecropidx']):
                     (x1,y1,w,h) = self.tracker.parameters['imagecropidx']
-                    print(self.tracker.parameters['imagecropidx'])
                     image =  cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
                     image[y1:y1+h,x1:x1+w,:] = self.tracker.img
             else:
                 image = self.tracker.img
-            self.display.setImage(image)
-            self.display.setPupilOutline(pupil_pos,pupil_radius[0])
+            if not self.running or np.mod(f,self.runningDownsampleFactor) == 0:
+                self.display.setImage(image)
+            #self.display.setPupilOutline(pupil_pos,pupil_radius[0])
             self.display.wNFrames.setText(str(f))
         self.app.processEvents()
 
@@ -195,11 +197,13 @@ class MPTrackerWindow(QMainWindow):
         elif e.key() == 82: # R
             if not self.running:
                 self.runDetectionVerbose()
+                self.running = False
             else:
                 self.running = False
         elif e.key() == 70: # F
             if not self.running:
                 self.runDetectionVerbose(saveOutput = True)
+                self.running = False
             else:
                 self.running = False
         elif e.key() == 65: # A
