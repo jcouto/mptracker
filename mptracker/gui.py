@@ -97,14 +97,17 @@ class MPTrackerWindow(QMainWindow):
         self.tabs = []
         self.tabs.append(QDockWidget("Parameters",self))
         layout = QVBoxLayout()
-        self.paramwidget = MptrackerParameters(self.tracker,self.imgstack.get(0))
+        self.display = MptrackerDisplay(self.tracker.img)
+        self.paramwidget = MptrackerParameters(self.tracker,
+                                               self.imgstack.get(0),
+                                               self.display)
         self.tabs[-1].setWidget(self.paramwidget)
         self.tabs[-1].setFloating(False)
         self.addDockWidget(
             Qt.RightDockWidgetArea and Qt.TopDockWidgetArea,
             self.tabs[-1])
         self.tabs.append(QDockWidget("Frame",self))
-        self.display = MptrackerDisplay(self.tracker.img)
+
         self.tabs[-1].setWidget(self.display)
         self.tabs[-1].setFloating(False)
         self.addDockWidget(
@@ -125,17 +128,6 @@ class MPTrackerWindow(QMainWindow):
     def setStartFrame(self,event):
         self.startFrame = int(self.wFrame.value())
         print('StartFrame set [{0}].'.format(self.wFrame.value()))
-
-    def clearPoints(self,event):
-        self.tracker.ROIpoints = []
-        self.parameters['points'] = []
-        self.putPoints()
-        self.processFrame(self.wFrame.value())
-
-    def putPoints(self):
-        points = self.tracker.ROIpoints
-        self.tracker.parameters['pupilApprox'] = None
-        self.paramwidget.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
 
     def updateCropPoints(self):
         if len(self.tracker.ROIpoints) >= 4:
@@ -162,15 +154,16 @@ class MPTrackerWindow(QMainWindow):
             self.results['ellipsePix'][f,2:] = pupil_ellipse_par
             self.results['pupilPix'][f,:] = pupil_pos
             self.results['crPix'][f,:] = cr_pos
-            if (len(self.tracker.ROIpoints)>=4  and
-                len(self.cropPoints) == 4 and
-                not self.tracker.concatenateBinaryImage):
-                x1,x2,y1,y2 = self.cropPoints
-                image =  cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-                image[y1:y2,x1:x2,:] = self.tracker.img
+            if (len(self.tracker.ROIpoints)>=4 and not self.tracker.concatenateBinaryImage):
+                if len(self.tracker.parameters['imagecropidx']):
+                    (x1,y1,w,h) = self.tracker.parameters['imagecropidx']
+                    print(self.tracker.parameters['imagecropidx'])
+                    image =  cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+                    image[y1:y1+h,x1:x1+w,:] = self.tracker.img
             else:
                 image = self.tracker.img
             self.display.setImage(image)
+            self.display.setPupilOutline(pupil_pos,pupil_radius[0])
             self.display.wNFrames.setText(str(f))
         self.app.processEvents()
 

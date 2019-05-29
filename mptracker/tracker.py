@@ -70,9 +70,15 @@ def extractPupilShapeAnalysis(img,params,
     img = adjust_gamma(img,params['gamma'])
     # Contrast equalization
     # Gaussian blurring
-    img = cv2.GaussianBlur(img,
-                           (params['gaussian_filterSize'],
-                            params['gaussian_filterSize']),0)
+    imfilter = params['filterType']
+    if imfilter == 'gaussian':
+        img = cv2.GaussianBlur(img,
+                               (params['filterSize'],
+                                params['filterSize']),0)
+    elif imfilter == 'median':
+        img = cv2.medianBlur(img,
+                             params['filterSize'])
+        
     img = clahe.apply(img)
     
     # Morphological operations (Open)
@@ -224,7 +230,8 @@ class MPTracker(object):
         'contrast_clipLimit':10,
         'contrast_gridSize':5,
         'contrast_roi': True,
-        'gaussian_filterSize':3,
+        'filterType':'median',
+        'filterSize':3,
         'open_kernelSize':0,
         'close_kernelSize':2,
         'threshold':40,

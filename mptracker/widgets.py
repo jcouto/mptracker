@@ -1,4 +1,4 @@
-from .tracker import MPTracker
+from .tracker import MPTracker,ellipseToContour
 import numpy as np
 import cv2
 import os
@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QGridLayout,
                              QFormLayout,
                              QCheckBox,
+                             QComboBox,
                              QTextEdit,
                              QSlider,
                              QPushButton,
@@ -23,6 +24,7 @@ from PyQt5.QtWidgets import (QWidget,
 from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor,QFont
 from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
 
+useOpenGL=False
 class MptrackerDisplay(QWidget):
     def __init__(self,img = None):
         super(MptrackerDisplay,self).__init__()
@@ -51,27 +53,55 @@ class MptrackerDisplay(QWidget):
         pg.setConfigOptions(imageAxisOrder='row-major')
         self.win = pg.GraphicsLayoutWidget()
         p1 = self.win.addPlot(title="")
-        self.imgview = pg.ImageItem(useOpenGL=True)
         p1.getViewBox().invertY(True)
         p1.getViewBox().invertX(True)
         p1.hideAxis('left')
         p1.hideAxis('bottom')
-        p1.addItem(self.imgview)
-
-        self.text = pg.TextItem('hello',color = [200,100,100],anchor = [1,0])
+        self.imgview = pg.ImageItem(useOpenGL=useOpenGL)
+        self.pltPup = pg.PlotCurveItem([np.nan,np.nan],
+                                       [np.nan,np.nan])
+        
+        p1.addItem(self.pltPup)
+        self.text = pg.TextItem('hello',
+                                color = [200,100,100],
+                                anchor = [1,0])
         p1.addItem(self.text)
+        self.roi_corners = pg.LineSegmentROI(([100,200],[200,200]),pen = (1,9))
+        self.roi_lid = pg.LineSegmentROI(([150,250],[150,150]),pen = (2,9))
+        self.roi_points_selected = None
+        def updateroi(val):
+            c = self.roi_corners.getHandles() + self.roi_lid.getHandles()
+            c = [c[i] for i in [0,2,1,3]]
+            self.roi_points_selected = np.stack([np.array(p.pos()).astype(int) for p in c])
+        self.roi_corners.sigRegionChanged.connect(updateroi)
+        self.roi_lid.sigRegionChanged.connect(updateroi)
+
         b=QFont()
         b.setPixelSize(24)
         self.text.setFont(b)
+        elements = [self.imgview,
+                    self.text,
+                    self.roi_corners,
+                    self.roi_lid]
+        [p1.addItem(e) for e in elements]
         self.p1 = p1
 
     def processFrame(self):
         pass
     def setImage(self,image):
         self.imgview.setImage(image)
-
+    def setPupilOutline(self,pos,radius):
+        if np.isnan(radius):
+            return
+        c = ellipseToContour(pos,radius,radius,0)
+        self.pltPup.setData(x = c[:,0,1],y = c[:,0,0])
+        
 class MptrackerParameters(QWidget):
-    def __init__(self,tracker,image = np.ones((75,75),dtype=np.uint8)):
+    def __init__(self,tracker,
+                 image = np.ones((75,75),
+                                 dtype=np.uint8),
+                 displaywidget = None,
+):
         super(MptrackerParameters,self).__init__()
         self.tracker = tracker
         self.parameters = tracker.parameters
@@ -86,7 +116,7 @@ class MptrackerParameters(QWidget):
         self.tabDisplay = QWidget()
         layout.addWidget(self.tabs)
         self.tabs.addTab(self.tabTrackParameters,'Tracker parameters')
-        self.tabs.addTab(self.tabROI,'Tracker ROI selection')
+        #self.tabs.addTab(self.tabROI,'Tracker ROI selection')
         self.tabs.addTab(self.tabDisplay,'Display and save')
 
         # Image parameters
@@ -108,16 +138,31 @@ class MptrackerParameters(QWidget):
         self.wGamma.valueChanged.connect(self.setGamma)
         pGrid.addRow(self.wGammaLabel, self.wGamma)
         
-        # Gaussian blur
-        self.wGaussianFilterSize = QSlider(Qt.Horizontal)
-        self.wGaussianFilterSize.setValue(self.parameters['gaussian_filterSize']*10)
-        self.wGaussianFilterSize.setMaximum(61)
-        self.wGaussianFilterSize.setMinimum(1)
-        self.wGaussianFilterSize.setSingleStep(2)
-        self.wGaussianFilterSizeLabel = QLabel('Gaussian filter [{0}]:'.format(
-            self.wGaussianFilterSize.value()/10.))
-        self.wGaussianFilterSize.valueChanged.connect(self.setGaussianFilterSize)
-        pGrid.addRow(self.wGaussianFilterSizeLabel, self.wGaussianFilterSize)
+        # blur filter
+        self.wFilterType = QComboBox()
+        [self.wFilterType.addItem(v) for v in ['median','gaussian']]
+        def update_type(val):
+            self.tracker.parameters['filterType'] = val
+            self.update()
+        self.wFilterType.currentTextChanged.connect(update_type)
+        pGrid.addRow(QLabel('Filter type'), self.wFilterType)
+        # blur size
+        self.wFilterSize = QSlider(Qt.Horizontal)
+        self.wFilterSize.setValue(self.parameters['filterSize']*10)
+        self.wFilterSize.setMaximum(61)
+        self.wFilterSize.setMinimum(1)
+        self.wFilterSize.setSingleStep(2)
+        self.wFilterSizeLabel = QLabel('Filter size [{0}]:'.format(
+            self.wFilterSize.value()/10.))
+        def update_size(value):
+            # make sure value is odd
+            if not np.mod(value,2) == 1:
+                value += 1
+            self.parameters['filterSize'] = int(value)
+            self.wFilterSizeLabel.setText('filter size [{0}]:'.format(int(value)))
+            self.update()
+        self.wFilterSize.valueChanged.connect(update_size)
+        pGrid.addRow(self.wFilterSizeLabel, self.wFilterSize)
 
         # Contrast equalization (adaptative or full)
         self.wContrastLim = QSlider(Qt.Horizontal)
@@ -208,9 +253,38 @@ class MptrackerParameters(QWidget):
         self.wResetSequentialPupil.clicked.connect(self.resetSequentialPupil)
         pGrid3.addRow(self.wResetSequentialPupil)
 
+        pGroup4 = QGroupBox()
+        pGrid4 = QFormLayout()
+        pGroup4.setLayout(pGrid4)
+        pGroup4.setTitle("ROI")  
+
+        self.wPoints = QLabel('nan,nan \n nan,nan \n nan,nan \n nan,nan\n')
+        pGrid4.addRow(QLabel('ROI points:'),self.wPoints)
+        self.wPoints.mouseDoubleClickEvent = self.clearPoints
+
+        if not displaywidget is None:
+            def updateROI(val):
+                points = displaywidget.roi_points_selected
+                if not points is None:
+                    p = []
+                    for t in points:
+                        x,y = t
+                        p.append([x,y])
+                    self.parameters['points'] = p
+                    self.tracker.setROI(self.parameters['points'])
+                    self.tracker.parameters['pupilApprox'] = None
+                    self.wPoints.setText(
+                        ' \n'.join([','.join([str(w) for w in p]) for p in points]))
+            button = QPushButton('Update ROI')
+            button.clicked.connect(updateROI)
+            pGrid4.addRow(button)
+
+        # parameters, buttons and options        
+        
         self.tabTrackParameters.layout.addWidget(pGroup)
         self.tabTrackParameters.layout.addWidget(pGroup2)
         self.tabTrackParameters.layout.addWidget(pGroup3)
+        self.tabTrackParameters.layout.addWidget(pGroup4)
 
         self.tabDisplay.layout = QGridLayout()
         pGroup = QGroupBox()
@@ -248,25 +322,18 @@ class MptrackerParameters(QWidget):
         
         self.tabDisplay.layout.addWidget(pGroup)
 
+        #self.tabROI.layout = QFormLayout()
+        #pGrid = self.tabROI.layout
+        #self.tabROI.setLayout(self.tabROI.layout)
         
-        self.tabROI.layout = QFormLayout()
-        pGrid = self.tabROI.layout
-        self.tabROI.setLayout(self.tabROI.layout)
         
-        # parameters, buttons and options
-        self.wPoints = QLabel('nan,nan \n nan,nan \n nan,nan \n nan,nan\n')
-        pGrid.addRow(QLabel('ROI points:'),self.wPoints)
-        self.wPoints.mouseDoubleClickEvent = self.clearPoints
-        
-        self.wROIscene = QGraphicsScene()
-        self.wROIview = QGraphicsView(self.wROIscene)
-        self.setROIImage(cv2.equalizeHist(image))
-        self.wROIview.setGeometry(0,0,75,75)
-        self.wROIview.scale(0.3,0.3)
-        self.wROIview.mouseReleaseEvent = self.selectPoints
-        pGrid.addRow(self.wROIview)
-#         self.tabROI.layout.addWidget(pGrid)
-
+        #self.wROIscene = QGraphicsScene()
+        #self.wROIview = QGraphicsView(self.wROIscene)
+        #self.setROIImage(cv2.equalizeHist(image))
+        #self.wROIview.setGeometry(0,0,75,75)
+        #self.wROIview.scale(0.3,0.3)
+        #self.wROIview.mouseReleaseEvent = self.selectPoints
+        #pGrid.addRow(self.wROIview)
         self.setLayout(layout)
         self.show()
 
@@ -276,18 +343,9 @@ class MptrackerParameters(QWidget):
             frame  = cv2.cvtColor(image,cv2.COLOR_GRAY2RGB)
         else:
             frame = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        # Draw region of interest
-        #pts = self.parameters['points']
-        #if len(self.parameters['points']) > 2:
-        #    pts = np.array(pts).reshape((-1,1,2))
-        #cv2.polylines(frame,[pts],True,(0,255,255))
         qimage = QImage(frame, frame.shape[1], frame.shape[0], 
                                frame.strides[0], QImage.Format_RGB888)
         self.wROIscene.addPixmap(QPixmap.fromImage(qimage))
-        #self.wROIview.fitInView(QRectF(0,0,
-        #                               2000,
-        #                               2000),
-        #                        Qt.KeepAspectRatio)
         self.wROIscene.update()
 
         
@@ -296,12 +354,11 @@ class MptrackerParameters(QWidget):
         self.parameters['points'] = []
         self.putPoints()
         self.update()
-
         
-    def putPoints(self):
-        points = self.tracker.ROIpoints
-        self.tracker.parameters['pupilApprox'] = None
-        self.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
+#    def putPoints(self):
+#        points = self.tracker.ROIpoints
+#        self.tracker.parameters['pupilApprox'] = None
+#        self.wPoints.setText(' \n'.join([','.join([str(w) for w in p]) for p in points]))
         
     def updateTrackerOutputBinaryImage(self,state):
         self.tracker.concatenateBinaryImage = state
@@ -355,13 +412,6 @@ class MptrackerParameters(QWidget):
         self.tracker.set_clhe()
         self.update()
 
-    def setGaussianFilterSize(self,value):
-        if not np.mod(value,2) == 1:
-            value += 1
-        
-        self.parameters['gaussian_filterSize'] = int(value)
-        self.wGaussianFilterSizeLabel.setText('Gaussian filter size [{0}]:'.format(int(value)))
-        self.update()
 
     def setCloseKernelSize(self,value):
         self.parameters['close_kernelSize'] = int(value)
