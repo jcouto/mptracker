@@ -50,7 +50,7 @@ Dependencies:
 2. ``conda install pyqt h5py scipy numpy matplotlib``
 3. ``conda install -c conda-forge tifffile``
 4. ``conda install -c menpo opencv3``
-5. ``pip install pims pyqtgraph``
+5. ``pip install pims pyqtgraph tqdm natsort``
 6. Clone the repositoty: ``git clone https://bitbucket.org/jpcouto/mptracker.git``
 7. Go into that folder``cd mptracker`` and finally ``python setup.py develop``
 
