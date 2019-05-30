@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Mouse pupil tracker main objects.
+# Mouse pupil tracker, these are the functions that do the weight-lifting.
 
 import numpy as np
 import cv2
@@ -68,8 +68,7 @@ def extractPupilShapeAnalysis(img,params,
     outimg = img.copy()
     outimg = cv2.cvtColor(outimg,cv2.COLOR_GRAY2RGB)
     img = adjust_gamma(img,params['gamma'])
-    # Contrast equalization
-    # Gaussian blurring
+    # Blurring
     imfilter = params['filterType']
     if imfilter == 'gaussian':
         img = cv2.GaussianBlur(img,
@@ -78,9 +77,8 @@ def extractPupilShapeAnalysis(img,params,
     elif imfilter == 'median':
         img = cv2.medianBlur(img,
                              params['filterSize'])
-        
+    # Contrast equalization        
     img = clahe.apply(img)
-    
     # Morphological operations (Open)
     if params['open_kernelSize'] > 0:
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
@@ -110,7 +108,7 @@ def extractPupilShapeAnalysis(img,params,
                                              cv2.CHAIN_APPROX_SIMPLE)
     #img = cv2.drawContours(img,
     #                       contours, -1, (20, 0, 250),1)
-    # For display only
+    # For displaying the corneal reflection
     if drawProcessedFrame:
         outimg = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
     if not params['crApprox'] is None:
@@ -122,7 +120,7 @@ def extractPupilShapeAnalysis(img,params,
     minArea = params['minPupilArea']*roiArea
     maxArea = roiArea*params['maxPupilArea']
     circleIdx = np.where((area > minArea) & (area < maxArea))[0]
-
+    
     font = cv2.FONT_HERSHEY_SIMPLEX
     #for i,c in enumerate(contours):
     #    try:
@@ -159,24 +157,28 @@ def extractPupilShapeAnalysis(img,params,
             # Remove candidates that are close to the corneal reflection center
             #if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
             #    dist = 1000
-            cv2.drawContours(mask,[contours[i]],0,255,-1)
-            #mean_val = cv2.mean(thresh,mask = mask)[0]
-            #if mean_val < 128:
-            #    dist[e] = 5000
+            # Choose only dark contours?
+            # mean_val = cv2.mean(thresh,mask = mask)[0]
+            # if mean_val < 128:
+            #     dist[e] = 5000            
 
-            mask = cv2.drawContours(img,
-                                    [contours[i]], -1, (70, 0, 150),1)
             # Make it easier to be the pupil if close to the expected location
+            # This was buggy and was removed
             if drawProcessedFrame:
                 outimg = cv2.drawContours(outimg,
                                           [contours[i]], -1, (70, 0, 150),1)
-                #outimg = cv2.putText(outimg,'{0}'.format(dist[e]),
-                #                  (cX,cY), font, 0.5,(0,0,255),1,cv2.LINE_AA)
+
         else:
             econt = []
         if len(econt):
+            # score is the sum of these three factors
             score[e] = cv2.matchShapes(contours[i],econt[0],2,0.0)
-            score[e] *= (dist[e]**2)
+            score[e] += (dist[e]**2)
+            score[e] += (ellipse[1][1]/ellipse[1][0]) * 100
+            #print(e,score[e],dist[e],ellipse[1][1]/ellipse[1][0])
+            #print('\n')
+            #outimg = cv2.putText(outimg,'{0:4.1f}'.format(score[e]),
+            #                     (cX,cY), font, 0.5,(0,50,200),1,cv2.LINE_AA)
         else:
             score[e] = 1000**2
             dist[e] = 1000
@@ -189,10 +191,9 @@ def extractPupilShapeAnalysis(img,params,
     score = np.array(score)
     if params['sequentialPupilMode']:
         idx = dist<w*0.1
-    else:
-        idx = range(len(score))
-    if len(score[idx]):
-        # Select the one with the best score
+        score = score[idx]
+    # Select the shape with the best score
+    if len(score):
         idx = circleIdx[np.argmin(score)]
         # discard outliers (points that are far from the median)
         cX,cY = getCenterOfMass(contours[idx])
@@ -205,19 +206,21 @@ def extractPupilShapeAnalysis(img,params,
         if len(pts) > 6:
             ellipse = cv2.fitEllipse(pts)
         else:
+            print('Too few points to fit ellipse after removing outliers.')
             ellipse = [[0,0],[0,0]]
         # is it a circle-ish thing?
         if not ellipse[1][0] == 0 and (ellipse[1][1]/ellipse[1][0]) < params['roundIndex']:
             outimg = cv2.drawContours(outimg,
-                                        [contours[idx]], -1, (0, 255, 0),1)
-            cv2.ellipse(outimg,ellipse,(10,250,250),2,cv2.LINE_AA)
+                                        [contours[idx]], -1, (100, 225, 100),1)
+            cv2.ellipse(outimg,ellipse,(50,150,250),2,cv2.LINE_AA)
             # Absolute positions
             pupil_pos = np.array([ellipse[0][0],ellipse[0][1]])
             short_axis = ellipse[1][0]
             long_axis = ellipse[1][1]
             phi = ellipse[2]
             pupil_pos[0] += x1
-            pupil_pos[1] += y1 
+            pupil_pos[1] += y1
+            
     if concatenateBinaryImage and drawProcessedFrame:
         outimg = np.concatenate((outimg,thresh),axis=0)
     return (outimg,(maxL[0] + x1,

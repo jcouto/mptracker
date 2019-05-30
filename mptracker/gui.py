@@ -99,7 +99,8 @@ class MPTrackerWindow(QMainWindow):
         self.tabs = []
         self.tabs.append(QDockWidget("Parameters",self))
         layout = QVBoxLayout()
-        self.display = MptrackerDisplay(self.tracker.img)
+        self.display = MptrackerDisplay(self.tracker.img,
+                                        runFunct = self.runDetectionVerbose)
         self.paramwidget = MptrackerParameters(self.tracker,
                                                self.imgstack.get(0),
                                                eyewidget = self.display.roi_selection)
@@ -243,18 +244,8 @@ class MPTrackerWindow(QMainWindow):
                 print('Removing {0} outliers.'.format(len(nanidx)))
             self.results['ellipsePix'][nanidx,:] = np.nan
             self.results['pupilPix'][nanidx,:] = np.nan
+        self.saveResults()
 
-        if self.resultfile is None:
-            try:
-                answer = QFileDialog().getSaveFileName()
-                self.resultfile = str(answer[0])
-            except:
-                self.resultfile = None
-        self.resultfile = str(self.resultfile)
-        res = exportResultsToHDF5(self.resultfile,
-                                  self.parameters,
-                                  self.results)            
-        return
     
     def _initResults(self):
         if not len(self.parameters['points']) == 4:
@@ -299,6 +290,9 @@ The order matters, the first and third points are the edges of the eye.''')
             print('Removing {0} outliers.'.format(len(nanidx)))
         self.results['ellipsePix'][nanidx,:] = np.nan
         self.results['pupilPix'][nanidx,:] = np.nan
+        self.saveResults()
+        
+    def saveResults(self):
         if self.resultfile is None:
             try:
                 self.resultfile = str(QFileDialog().getSaveFileName()[0])
@@ -307,10 +301,17 @@ The order matters, the first and third points are the edges of the eye.''')
         self.resultfile = str(self.resultfile)
         res = exportResultsToHDF5(self.resultfile,
                                   self.parameters,
-                                  self.results)            
+                                  self.results)
+        fname,ext = os.path.splitext(self.resultfile)
+        if not len(ext):
+            self.resultfile = None
         if not res is None:
             print("Saved to " + self.resultfile)
 
+    def closeEvent(self,event):
+        self.running = False
+        event.accept()
+        
 def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('target',

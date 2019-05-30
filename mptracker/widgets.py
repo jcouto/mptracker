@@ -26,7 +26,7 @@ from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF
 
 useOpenGL=False
 class MptrackerDisplay(QWidget):
-    def __init__(self,img = None):
+    def __init__(self,img = None,runFunct = None):
         super(MptrackerDisplay,self).__init__()
         grid = QFormLayout()
         
@@ -34,13 +34,19 @@ class MptrackerDisplay(QWidget):
         self.wNFrames.setMaximumHeight(25)
         self.wNFrames.setMaximumWidth(200)
         grid.addRow(QLabel('Frame number:'),self.wNFrames)
-        
+        if not runFunct is None:
+            runbutton = QPushButton('Run')
+            runbutton.clicked.connect(runFunct)
+            grid.addRow(runbutton)
         self.wFrame = QSlider(Qt.Horizontal)
         self.wFrame.valueChanged.connect(self.processFrame)
         self.wFrame.setMaximum(1)
         self.wFrame.setMinimum(0)
         self.wFrame.setValue(0)
-        grid.addRow(self.wFrame)
+        if not runFunct is None:
+            grid.addRow(runbutton,self.wFrame)
+        else:
+            grid.addRow(self.wFrame)
         # images and plots
         self._init_pg()
         self.setImage(img)
