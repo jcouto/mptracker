@@ -68,16 +68,15 @@ class MptrackerDisplay(QWidget):
         #                               [np.nan,np.nan])
         
         #p1.addItem(self.pltPup)
-        self.text = pg.TextItem('hello',
-                                color = [200,100,100],
-                                anchor = [1,0])
-        p1.addItem(self.text)
+        #self.text = pg.TextItem('hello',
+        #                        color = [200,100,100],
+        #                        anchor = [1,0])
+        #b=QFont()
+        #b.setPixelSize(24)
+        #self.text.setFont(b)
+        #p1.addItem(self.text)
         self.roi_selection = EyeROIWidget()
-        b=QFont()
-        b.setPixelSize(24)
-        self.text.setFont(b)
-        elements = [self.imgview,
-                    self.text] + self.roi_selection.items()
+        elements = [self.imgview] + self.roi_selection.items()
         [p1.addItem(e) for e in elements]
         self.p1 = p1
 

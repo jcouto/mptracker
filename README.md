@@ -32,6 +32,29 @@ The file is organized as follows:
 
 In MATLAB do for example: `diam = h5read('filename.something','/diameter')`
 
+Usage (GUI):
+------------
+
+**NOTE**: ``mptracker-gui --help`` for options.
+
+
+Launch the GUI from the command line: ``mptracker-gui <filename>``. The filename is that of a seq file or one of the TIFF files in a TIFF sequence.  
+### Instructions:
+
+1.   Select left corner; top; right corner and bottom of the eye by dragging the points (keep the arangement between points the same as default).
+2.   Once the points are in place click 'Update ROI'
+3.   Adjust the parameters for best pupil contrast.
+4.   Press 'Run' button or *r* key to launch the analysis. You will be prompted for a filename where to save  when it finishes. ( *r* stops the analysis also).
+5.   Press the key *p* to plot results.
+
+For other key options press the *h* key
+
+### Command line options:
+
+- *-o* <output file path> File where to save the results to (will ask if not specified).
+- *-p* <parameter file> Parameter file to load.
+
+
 Installation:
 -------------
 Dependencies:
@@ -55,28 +78,6 @@ Dependencies:
 7. Go into that folder``cd mptracker`` and finally ``python setup.py develop``
 
 **Note:** On windows I suggest getting the [ git bash terminal ](https://git-scm.com/downloads); Installing Anaconda as system python will make your life easier...
-
-Usage (GUI):
-------------
-
-**NOTE**: ``mptracker-gui --help`` for options.
-
-
-Launch the GUI from the command line: ``mptracker-gui <filename>``. The filename is that of a seq file or one of the TIFF files in a TIFF sequence.  
-
-
-### Command line options:
-
-- *-o* <output file path> File where to save the results to (will ask if not specified).
-- *-p* <parameter file> Parameter file to load.
-
-### Instructions:
-
-1.   Select left corner; top; right corner and bottom of the eye by dragging the points (keep the arangement between points the same as default).
-2.   Adjust the parameters for best pupil contrast.
-3.   Press the key *r* to launch the analysis. You will be prompted for a filename where to save  when it finishes. ( *r* stops the analysis also).
-4.   Press the key *p* to plot results.
-
 
 **Please let me know whether this works for you and acknowledge if you use it in a publication.**
 
