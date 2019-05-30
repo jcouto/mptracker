@@ -482,7 +482,8 @@ class MptrackerParameters(QWidget):
             self.tracker.parameters['crApprox'] = pts
     '''
     def update(self):
-        print('Pass...')
+        # This function can be overwritten to update the image
+        pass
 
     def saveTrackerParameters(self,resultfile = None):
         if resultfile is None or resultfile == False:
