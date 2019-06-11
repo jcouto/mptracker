@@ -30,7 +30,16 @@ def cropImageWithCoords(npts,img):
     x2 = x1 + w
     y2 = y1 + h
     return img[y1:y2,x1:x2],(x1,y1,w,h)
-    
+
+# because find contours changed between python versions
+(cv2major, _, _) = cv2.__version__.split(".")
+if int(cv2major)>3:
+    def findContours(im,*args):
+        return cv2.findContours(im,*args)[0]        
+else:
+    def findContours(im,*args):
+        return cv2.findContours(im,*args)[1]        
+
 def extractPupilShapeAnalysis(img,params,
                               ROIpoints = [],
                               expectedDiam = None,
@@ -104,8 +113,8 @@ def extractPupilShapeAnalysis(img,params,
     else:
         ret,thresh = cv2.threshold(img,params['threshold'],255,0)
     # Find the contours
-    im,contours,hierarchy = cv2.findContours(thresh.copy(),cv2.RETR_LIST,
-                                             cv2.CHAIN_APPROX_SIMPLE)
+    contours = findContours(thresh.copy(),cv2.RETR_LIST,
+                       cv2.CHAIN_APPROX_SIMPLE)
     #img = cv2.drawContours(img,
     #                       contours, -1, (20, 0, 250),1)
     # For displaying the corneal reflection
@@ -114,7 +123,8 @@ def extractPupilShapeAnalysis(img,params,
     if not params['crApprox'] is None:
         outimg = cv2.circle(outimg, maxL, 2, (0,0,255), 1)
     # Shape analysis (get the area of each contour)
-    area = np.array([cv2.contourArea(c) for c in contours],
+
+    area = np.array([cv2.contourArea(c.astype(np.float32)) for c in contours],
                     dtype = np.float32)
     # Discard very large and very small areas.
     minArea = params['minPupilArea']*roiArea
@@ -153,7 +163,7 @@ def extractPupilShapeAnalysis(img,params,
             ellipse = cv2.fitEllipse(pts) 
             tmpe[:] = 0
             cv2.ellipse(tmpe,ellipse,255,-1)
-            _,econt,_ = cv2.findContours(tmpe,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+            econt = findContours(tmpe,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
             # Remove candidates that are close to the corneal reflection center
             #if np.sqrt((maxL[0] - cX)**2 + (maxL[1] - cY)**2) < h*0.03:
             #    dist = 1000
@@ -248,7 +258,7 @@ class MPTracker(object):
         'sequentialPupilMode':False,
         'points':[],
         'invertThreshold':False,
-        'eye_radius_mm':2.4, #this was set to 3*0.8 in the matlab version
+        'eye_radius_mm':1.8, #this was set to 3*0.8 in the matlab version
         'number_frames':0,
     }
     def __init__(self,parameters = None, drawProcessedFrame=False):

@@ -62,7 +62,7 @@ def computeConversionFactor(ref,estimate = 6.0):
 def convertPixelToEyeCoords(pupilPix,
                             eyeCorners,
                             crPix = None,
-                            eyeDiameterEstimate = 6.0):
+                            eyeDiameterEstimate = 3.0):
     reference = [eyeCorners[0][0] +
                  np.diff([eyeCorners[0][0],eyeCorners[1][0]])/2.,
                  eyeCorners[0][1] +
