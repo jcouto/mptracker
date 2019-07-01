@@ -60,10 +60,11 @@ class MptrackerDisplay(QWidget):
         self.win = pg.GraphicsLayoutWidget()
         p1 = self.win.addPlot(title="")
         p1.getViewBox().invertY(True)
-        p1.getViewBox().invertX(True)
-        p1.hideAxis('left')
-        p1.hideAxis('bottom')
+        #p1.hideAxis('left')
+        #p1.hideAxis('bottom')
         self.imgview = pg.ImageItem(useOpenGL=useOpenGL)
+        self.imgview.setScale(1)
+        self.imgview.setPos(0,0)
         #self.pltPup = pg.PlotCurveItem([np.nan,np.nan],
         #                               [np.nan,np.nan])
         

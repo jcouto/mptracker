@@ -106,6 +106,14 @@ class MPTrackerWindow(QMainWindow):
                                                eyewidget = self.display.roi_selection)
         self.tabs[-1].setWidget(self.paramwidget)
         self.tabs[-1].setFloating(False)
+        def middle_click(ev):
+            if ev.button() > 2:
+                scenePos = self.display.imgview.mapFromScene(ev.scenePos())
+                y, x = int(scenePos.y()), int(scenePos.x())
+                self.tracker.parameters['crApprox'] = [int(x),int(y)]
+                self.processFrame(int(self.wFrame.value()))
+
+        self.display.imgview.scene().sigMouseClicked.connect(middle_click)
         self.addDockWidget(
             Qt.RightDockWidgetArea and Qt.TopDockWidgetArea,
             self.tabs[-1])
