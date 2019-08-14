@@ -61,7 +61,10 @@ class MPTrackerWindow(QMainWindow):
         elif os.path.splitext(self.targetpath)[1] in ['.avi']:
             self.imgstack =  AVIFileSequence(self.targetpath)
         else:
-            print('Unknown extension for:'+target)
+            print('Unknown extension for:'+targetpath)
+            print('trying with opencv')
+            self.imgstack =  AVIFileSequence(self.targetpath)
+
         self.tracker = MPTracker(parameters = params,
                                  drawProcessedFrame = True)
         self.tracker.apply(self.imgstack.get(0))
