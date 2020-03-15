@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 from .utils import *
 import os
+mptracker_ellipse_tickness = 1
 
 def ellipseToContour(pupil_pos,a,b,phi,R=np.linspace(0,2.1*np.pi, 20)):
     xx = pupil_pos[1] + a*np.cos(R)*np.cos(phi) - b*np.sin(R)*np.sin(phi)
@@ -222,7 +223,8 @@ def extractPupilShapeAnalysis(img,params,
         if not ellipse[1][0] == 0 and (ellipse[1][1]/ellipse[1][0]) < params['roundIndex']:
             outimg = cv2.drawContours(outimg,
                                         [contours[idx]], -1, (100, 225, 100),1)
-            cv2.ellipse(outimg,ellipse,(50,150,250),2,cv2.LINE_AA)
+            cv2.ellipse(outimg,ellipse,(50,150,250),
+                        mptracker_ellipse_tickness,cv2.LINE_AA)
             # Absolute positions
             pupil_pos = np.array([ellipse[0][0],ellipse[0][1]])
             short_axis = ellipse[1][0]

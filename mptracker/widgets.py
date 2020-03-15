@@ -126,6 +126,9 @@ class EyeROIWidget():
         c[1].setPos(*p2)
         c[2].setPos(*p3)
         c[3].setPos(*p4)
+    def setVisible(self,value):
+        self.roi_corners.setVisible(value)
+        self.roi_lid.setVisible(value)
         
 class MptrackerParameters(QWidget):
     def __init__(self,tracker,
@@ -314,6 +317,13 @@ class MptrackerParameters(QWidget):
             button = QPushButton('Update ROI')
             button.clicked.connect(updateROI)
             pGrid4.addRow(button)
+            self.wshowROI = QCheckBox()
+            self.wshowROI.setChecked(True)
+            def setshowROI(value):
+                eyewidget.setVisible(value)
+            self.wshowROI.stateChanged.connect(setshowROI)
+            pGrid4.addRow(QLabel('Show ROI:'),self.wshowROI)
+
 
         # parameters, buttons and options        
         

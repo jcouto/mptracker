@@ -15,7 +15,7 @@ from glob import glob
 from tifffile import TiffFile,imread
 from tempfile import mkdtemp
 from shutil import copyfile
-import cv2 # For reading 16bit tif
+import cv2 
 import re
 import json
 from .utils import *
@@ -289,7 +289,7 @@ class AVIFileSequence(object):
         self.files = []
         framesPerFile = []
         for i,f in enumerate(self.filenames):
-            self.files.append(cv2.VideoCapture(f))
+            self.files.append(cv2.VideoCapture(f,cv2.CAP_FFMPEG))
             N =  int(self.files[-1].get(cv2.CAP_PROP_FRAME_COUNT))
             h = int(self.files[-1].get(cv2.CAP_PROP_FRAME_HEIGHT))
             w = int(self.files[-1].get(cv2.CAP_PROP_FRAME_WIDTH))
