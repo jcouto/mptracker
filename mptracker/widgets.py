@@ -102,18 +102,16 @@ class EyeROIWidget():
         else:
             p1,p2 = ([100,200],[200,200])
             p3,p4 = ([150,250],[150,150])
-        self.roi_corners = pg.LineSegmentROI((p1,p2),pen = (1,9))
-        self.roi_lid = pg.LineSegmentROI((p3,p4),pen = (2,9))
+            self.roi_corners = pg.PolyLineROI((p1,p3,p2,p4),pen = (1,9))
         self.roi_points_selected = None
         def updateroi(val):
-            c = self.roi_corners.getHandles() + self.roi_lid.getHandles()
-            c = [c[i] for i in [0,2,1,3]]
+            p = self.roi_corners.pos()
+            c = self.roi_corners.getHandles()
             self.roi_points_selected = np.stack([
-                np.array(p.pos()).astype(int) for p in c])
+                np.array(v.pos()+p).astype(int) for v in c])
         self.roi_corners.sigRegionChanged.connect(updateroi)
-        self.roi_lid.sigRegionChanged.connect(updateroi)
     def items(self):
-        return [self.roi_corners,self.roi_lid]
+        return [self.roi_corners]
     def get(self):
         return self.roi_points_selected
     def set(self,points):
@@ -121,14 +119,14 @@ class EyeROIWidget():
         p2 = points[2]
         p3 = points[1]
         p4 = points[3]
-        c = self.roi_corners.getHandles() + self.roi_lid.getHandles()
+        self.roi_corners.setPos(0,0)
+        c = self.roi_corners.getHandles()# + self.roi_lid.getHandles()
         c[0].setPos(*p1)
         c[1].setPos(*p2)
         c[2].setPos(*p3)
         c[3].setPos(*p4)
     def setVisible(self,value):
         self.roi_corners.setVisible(value)
-        self.roi_lid.setVisible(value)
         
 class MptrackerParameters(QWidget):
     def __init__(self,tracker,
