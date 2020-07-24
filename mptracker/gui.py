@@ -9,6 +9,7 @@ import argparse
 from glob import glob
 from time import sleep
 import cv2
+from natsort import natsorted 
 #import matplotlib.pyplot as plt
 # Qt imports
 try:
@@ -59,7 +60,11 @@ class MPTrackerWindow(QMainWindow):
         elif os.path.splitext(self.targetpath)[1] in ['.seq']:
             self.imgstack = NorpixFile(self.targetpath)
         elif os.path.splitext(self.targetpath)[1] in ['.avi']:
-            self.imgstack =  AVIFileSequence(self.targetpath)
+            if '*' in targetpath:
+                files = [f for f in natsorted(glob(targetpath))]
+            else:
+                files = targetpath
+            self.imgstack =  AVIFileSequence(files)
         else:
             print('Unknown extension for:'+targetpath)
             print('trying with opencv')

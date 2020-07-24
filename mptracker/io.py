@@ -274,8 +274,12 @@ class NorpixFile(object):
 class AVIFileSequence(object):
     def __init__(self,targetpath = None):
         '''Lets you access a sequence of AVI files without noticing...'''
-        self.path = os.path.dirname(targetpath)
-        self.filenames = [targetpath]
+        if type(targetpath) is list:
+            self.path = os.path.dirname(targetpath[0])
+            self.filenames = targetpath
+        else:
+            self.path = os.path.dirname(targetpath)
+            self.filenames = [targetpath]
         #self.basename,extension = os.path.splitext(os.path.basename(targetpath))
         #filenames = np.sort(glob(pjoin(self.path,'*'+extension)))
         # Use natural sort
@@ -288,12 +292,14 @@ class AVIFileSequence(object):
         #    raise
         self.files = []
         framesPerFile = []
+        self.curidx = []
         for i,f in enumerate(self.filenames):
             self.files.append(cv2.VideoCapture(f,cv2.CAP_FFMPEG))
             N =  int(self.files[-1].get(cv2.CAP_PROP_FRAME_COUNT))
             h = int(self.files[-1].get(cv2.CAP_PROP_FRAME_HEIGHT))
             w = int(self.files[-1].get(cv2.CAP_PROP_FRAME_WIDTH))
             framesPerFile.append(np.int64(N))
+            self.curidx.append(0)
             if 'h' in dir(self):
                 if not self.h == h:
                     print('Wrong height value on one of the files.')
@@ -304,11 +310,9 @@ class AVIFileSequence(object):
         self.framesPerFile = np.array(framesPerFile, dtype=np.int64)
         self.framesOffset = np.hstack([0,np.cumsum(self.framesPerFile[:-1])])
         self.nFrames = np.sum(framesPerFile)
-
     def getFrameIndex(self,frame):
-        '''Computes the frame index from multipage tiff files.'''
+        '''Computes the frame index from multiple files.'''
         fileidx = np.where(self.framesOffset <= frame)[0][-1]
-        # This breaks for huge tif files
         return fileidx,int(frame - self.framesOffset[fileidx])
 
     def get(self,frame):
@@ -316,7 +320,10 @@ class AVIFileSequence(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
-        self.files[fileidx].set(1,frameidx)
+        if not self.curidx[fileidx] == frameidx:
+            self.files[fileidx].set(1,frameidx)
+            self.curidx[fileidx] = frameidx
+        self.curidx[fileidx] +=1
         ret,img = self.files[fileidx].read()
         img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
         if img.dtype == np.uint16:
