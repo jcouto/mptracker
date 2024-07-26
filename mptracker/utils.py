@@ -3,7 +3,7 @@
 # Some of these are adapted from the Cox Lab EyeTracker.
 # (https://github.com/coxlab/eyetracker)
 # November 2016 - Joao Couto
-
+from decord import VideoReader
 import sys
 import os
 import numpy as np

@@ -65,6 +65,7 @@ class MPTrackerWindow(QMainWindow):
             else:
                 files = targetpath
             self.imgstack =  AVIFileSequence(files)
+            
         else:
             print('Unknown extension for:'+targetpath)
             print('trying with opencv')

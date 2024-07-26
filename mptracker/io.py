@@ -270,7 +270,6 @@ class NorpixFile(object):
             fd.close()
 
 # AVI
-
 class AVIFileSequence(object):
     def __init__(self,targetpath = None):
         '''Lets you access a sequence of AVI files without noticing...'''
@@ -294,10 +293,11 @@ class AVIFileSequence(object):
         framesPerFile = []
         self.curidx = []
         for i,f in enumerate(self.filenames):
-            self.files.append(cv2.VideoCapture(f,cv2.CAP_FFMPEG))
-            N =  int(self.files[-1].get(cv2.CAP_PROP_FRAME_COUNT))
-            h = int(self.files[-1].get(cv2.CAP_PROP_FRAME_HEIGHT))
-            w = int(self.files[-1].get(cv2.CAP_PROP_FRAME_WIDTH))
+            self.files.append(VideoReader(f))
+            N =  int(len(self.files[-1]))
+            im = self.files[-1][0].asnumpy()
+            h = int(im.shape[1])
+            w = int(im.shape[0])
             framesPerFile.append(np.int64(N))
             self.curidx.append(0)
             if 'h' in dir(self):
@@ -310,6 +310,7 @@ class AVIFileSequence(object):
         self.framesPerFile = np.array(framesPerFile, dtype=np.int64)
         self.framesOffset = np.hstack([0,np.cumsum(self.framesPerFile[:-1])])
         self.nFrames = np.sum(framesPerFile)
+
     def getFrameIndex(self,frame):
         '''Computes the frame index from multiple files.'''
         fileidx = np.where(self.framesOffset <= frame)[0][-1]
@@ -320,16 +321,19 @@ class AVIFileSequence(object):
         Useful attributes are nFrames, h (frame height) and w (frame width)
         '''
         fileidx,frameidx = self.getFrameIndex(frame)
-        if not self.curidx[fileidx] == frameidx:
-            self.files[fileidx].set(1,frameidx)
-            self.curidx[fileidx] = frameidx
+        #if not self.curidx[fileidx] == frameidx:
+        #    self.files[fileidx].set(1,frameidx)
+        self.curidx[fileidx] = frameidx
         self.curidx[fileidx] +=1
-        ret,img = self.files[fileidx].read()
-        img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        
+        img = self.files[fileidx][frameidx].asnumpy()
+        if len(img.shape) == 3:
+            img = img[:,:,0]
+        #img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
         if img.dtype == np.uint16:
             img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0))
         return img
 
     def close(self):
         for fd in self.files:
-            fd.close()
+            del fd

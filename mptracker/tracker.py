@@ -54,11 +54,17 @@ def extractPupilShapeAnalysis(img,params,
     roiArea = w*h
     if len(ROIpoints) >= 4:
         img,(x1, y1, w, h) = cropImageWithCoords(ROIpoints,img)
-        roiArea = w*h   
+        roiArea = w*h
         if params['crApprox'] is None:
             try:
-                mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(img,(21,21),100))
-                minV,maxV,minL,maxL = cv2.minMaxLoc(cv2.GaussianBlur(mag,(21,21),100))
+                blur_value = int(w/3)
+                if np.mod(blur_value,2) == 0:
+                    blur_value += 1
+                mag,imgx,imgy = sobel3x3(cv2.GaussianBlur(img,(blur_value,
+                                                               blur_value),100))
+                minV,maxV,minL,maxL = cv2.minMaxLoc(cv2.GaussianBlur(mag,(
+                    blur_value,
+                    blur_value),100))
                 params['crApprox'] = [maxL[0]+x1,maxL[1]+y1]
             except Exception as e:
                  print(e)

@@ -161,7 +161,7 @@ class MptrackerParameters(QWidget):
 
         # Gamma
         self.wGamma = QSlider(Qt.Horizontal)
-        self.wGamma.setValue(self.parameters['gamma']*10)
+        self.wGamma.setValue(int(self.parameters['gamma']*10))
         self.wGamma.setMaximum(30)
         self.wGamma.setMinimum(1)
         self.wGamma.setSingleStep(5)
@@ -180,7 +180,7 @@ class MptrackerParameters(QWidget):
         pGrid.addRow(QLabel('Filter type'), self.wFilterType)
         # blur size
         self.wFilterSize = QSlider(Qt.Horizontal)
-        self.wFilterSize.setValue(self.parameters['filterSize']*10)
+        self.wFilterSize.setValue(int(self.parameters['filterSize']*10))
         self.wFilterSize.setMaximum(61)
         self.wFilterSize.setMinimum(1)
         self.wFilterSize.setSingleStep(2)
@@ -198,7 +198,7 @@ class MptrackerParameters(QWidget):
 
         # Contrast equalization (adaptative or full)
         self.wContrastLim = QSlider(Qt.Horizontal)
-        self.wContrastLim.setValue(self.parameters['contrast_clipLimit'])
+        self.wContrastLim.setValue(int(self.parameters['contrast_clipLimit']))
         self.wContrastLim.setMinimum(0)
         self.wContrastLim.setMaximum(200)
         self.wContrastLimLabel = QLabel('Contrast limit [{0}]:'.format(
@@ -207,7 +207,7 @@ class MptrackerParameters(QWidget):
         pGrid.addRow(self.wContrastLimLabel,self.wContrastLim)
 
         self.wContrastGridSize = QSlider(Qt.Horizontal)
-        self.wContrastGridSize.setValue(self.parameters['contrast_gridSize'])
+        self.wContrastGridSize.setValue(int(self.parameters['contrast_gridSize']))
         self.wContrastGridSize.setMaximum(200)
         self.wContrastGridSize.setMinimum(1)
         self.wContrastGridSize.setSingleStep(1)
@@ -223,7 +223,7 @@ class MptrackerParameters(QWidget):
         pGroup2.setTitle("Morphological operations")  
 
         self.wOpenKernelSize = QSlider(Qt.Horizontal)
-        self.wOpenKernelSize.setValue(self.parameters['open_kernelSize'])
+        self.wOpenKernelSize.setValue(int(self.parameters['open_kernelSize']))
         self.wOpenKernelSize.setMaximum(61)
         self.wOpenKernelSize.setMinimum(0)
         self.wOpenKernelSize.setSingleStep(1)
@@ -233,7 +233,7 @@ class MptrackerParameters(QWidget):
         pGrid2.addRow(self.wOpenKernelSizeLabel, self.wOpenKernelSize)
 
         self.wCloseKernelSize = QSlider(Qt.Horizontal)
-        self.wCloseKernelSize.setValue(self.parameters['close_kernelSize'])
+        self.wCloseKernelSize.setValue(int(self.parameters['close_kernelSize']))
         self.wCloseKernelSize.setMaximum(61)
         self.wCloseKernelSize.setMinimum(0)
         self.wCloseKernelSize.setSingleStep(1)
@@ -248,7 +248,7 @@ class MptrackerParameters(QWidget):
         pGroup3.setTitle("Detection")  
         
         self.wBinThreshold = QSlider(Qt.Horizontal)
-        self.wBinThreshold.setValue(self.parameters['threshold'])
+        self.wBinThreshold.setValue(int(self.parameters['threshold']))
         self.wBinThresholdLabel = QLabel('Binary contrast [40]:')
         self.wBinThreshold.setMinimum(0)
         self.wBinThreshold.setMaximum(255)
