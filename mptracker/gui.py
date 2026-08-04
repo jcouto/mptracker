@@ -12,19 +12,12 @@ import cv2
 from natsort import natsorted 
 #import matplotlib.pyplot as plt
 # Qt imports
-try:
-    from PyQt5.QtWidgets import (QApplication,
-                                 QDockWidget,
-                                 QVBoxLayout,
-                                 QMainWindow,
-                                 QFileDialog)
-    from PyQt5.QtCore import Qt
-except:
-    from PyQt4.QtGui import (QWidget,
+from PyQt5.QtWidgets import (QApplication,
                              QDockWidget,
-                             QApplication,
+                             QVBoxLayout,
+                             QMainWindow,
                              QFileDialog)
-    from PyQt4.QtCore import Qt
+from PyQt5.QtCore import Qt
 
 import pylab as plt
 plt.matplotlib.style.use('ggplot')
@@ -122,20 +115,16 @@ class MPTrackerWindow(QMainWindow):
                 self.processFrame(int(self.wFrame.value()))
 
         self.display.imgview.scene().sigMouseClicked.connect(middle_click)
-        self.addDockWidget(
-            Qt.RightDockWidgetArea and Qt.TopDockWidgetArea,
-            self.tabs[-1])
+        self.addDockWidget(Qt.TopDockWidgetArea, self.tabs[-1])
         self.tabs.append(QDockWidget("Frame",self))
 
         self.tabs[-1].setWidget(self.display)
         self.tabs[-1].setFloating(False)
-        self.addDockWidget(
-            Qt.RightDockWidgetArea and Qt.TopDockWidgetArea,
-            self.tabs[-1])
+        self.addDockWidget(Qt.TopDockWidgetArea, self.tabs[-1])
 
         ####################
         self.wFrame = self.display.wFrame
-        self.wFrame.setMaximum(self.imgstack.nFrames-1)
+        self.wFrame.setMaximum(int(self.imgstack.nFrames)-1)
         self.wFrame.valueChanged.connect(self.processFrame)
         self.wFrame.mouseDoubleClickEvent = self.setStartFrame
         self.paramwidget.update = self.updateParam
@@ -288,9 +277,13 @@ The order matters, the first and third points are the edges of the eye.''')
                 saveOutputFile = saveOutputFile[0]
             from tifffile import TiffWriter
             with TiffWriter(saveOutputFile) as fd:
+                # save was renamed to write in recent tifffile versions
+                writefunc = getattr(fd,'write',None)
+                if writefunc is None:
+                    writefunc = fd.save
                 for f in range(self.startFrame,self.parameters['number_frames']):
                     self.wFrame.setValue(f)
-                    fd.save(self.tracker.img)
+                    writefunc(self.tracker.img)
                     if not self.running:
                         break
         else:
