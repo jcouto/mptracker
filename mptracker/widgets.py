@@ -92,39 +92,34 @@ class MptrackerDisplay(QWidget):
         self.pltPup.setData(x = c[:,0,1],y = c[:,0,0])
 
 class EyeROIWidget():
+    # The handles are kept in the same order as the points, going around the
+    # eye. get and set have to agree on that order, otherwise reloading saved
+    # parameters puts the corners in the wrong place and the eye corners that
+    # set the pixel to mm scale (points 0 and 2) end up somewhere else.
     def __init__(self,locations = None):
         import pyqtgraph as pg
-        if not locations is None:
-            p1 = locations[0]
-            p2 = locations[2]
-            p3 = locations[1]
-            p4 = locations[3]
-        else:
-            p1,p2 = ([100,200],[200,200])
-            p3,p4 = ([150,250],[150,150])
-            self.roi_corners = pg.PolyLineROI((p1,p3,p2,p4),pen = (1,9))
+        if locations is None:
+            locations = ([100,200],[150,250],[200,200],[150,150])
+        self.roi_corners = pg.PolyLineROI(locations,pen = (1,9))
         self.roi_points_selected = None
-        def updateroi(val):
-            p = self.roi_corners.pos()
-            c = self.roi_corners.getHandles()
-            self.roi_points_selected = np.stack([
-                np.array(v.pos()+p).astype(int) for v in c])
-        self.roi_corners.sigRegionChanged.connect(updateroi)
+        self.roi_corners.sigRegionChanged.connect(self.updateroi)
+    def updateroi(self,val = None):
+        p = self.roi_corners.pos()
+        c = self.roi_corners.getHandles()
+        self.roi_points_selected = np.stack([
+            np.array(v.pos()+p).astype(int) for v in c])
     def items(self):
         return [self.roi_corners]
     def get(self):
         return self.roi_points_selected
     def set(self,points):
-        p1 = points[0]
-        p2 = points[2]
-        p3 = points[1]
-        p4 = points[3]
         self.roi_corners.setPos(0,0)
         c = self.roi_corners.getHandles()# + self.roi_lid.getHandles()
-        c[0].setPos(*p1)
-        c[1].setPos(*p2)
-        c[2].setPos(*p3)
-        c[3].setPos(*p4)
+        for handle,point in zip(c,points):
+            handle.setPos(*point)
+        # setPos on a handle does not go through sigRegionChanged, so the
+        # points would stay unset until the user drags something
+        self.updateroi()
     def setVisible(self,value):
         self.roi_corners.setVisible(value)
         
@@ -312,9 +307,9 @@ class MptrackerParameters(QWidget):
                     self.tracker.parameters['pupilApprox'] = None
                     setpoints(points)
                     self.update()
-            button = QPushButton('Update ROI')
-            button.clicked.connect(updateROI)
-            pGrid4.addRow(button)
+            self.wUpdateROI = QPushButton('Update ROI')
+            self.wUpdateROI.clicked.connect(updateROI)
+            pGrid4.addRow(self.wUpdateROI)
             self.wshowROI = QCheckBox()
             self.wshowROI.setChecked(True)
             def setshowROI(value):

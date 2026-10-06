@@ -331,5 +331,6 @@ class AVIFileSequence(object):
         return img
 
     def close(self):
+        # cv2.VideoCapture releases, it has no close
         for fd in self.files:
-            fd.close()
+            fd.release()
