@@ -305,6 +305,16 @@ class MptrackerParameters(QWidget):
                     self.parameters['points'] = p
                     self.tracker.setROI(self.parameters['points'])
                     self.tracker.parameters['pupilApprox'] = None
+                    # A corneal reflection picked for the previous ROI means
+                    # nothing outside the new one - drop it so it gets
+                    # re-estimated inside the crop, like for a fresh ROI.
+                    cr = self.tracker.parameters['crApprox']
+                    if not cr is None and len(p) >= 4:
+                        xs = [t[0] for t in p]
+                        ys = [t[1] for t in p]
+                        if not (min(xs) <= cr[0] <= max(xs) and
+                                min(ys) <= cr[1] <= max(ys)):
+                            self.tracker.parameters['crApprox'] = None
                     setpoints(points)
                     self.update()
             self.wUpdateROI = QPushButton('Update ROI')

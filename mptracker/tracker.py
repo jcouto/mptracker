@@ -41,6 +41,32 @@ else:
     def findContours(im,*args):
         return cv2.findContours(im,*args)[1]        
 
+def clampWindow(center,half,size):
+    '''
+    (lo,hi) = clampWindow(center,half,size)
+
+    A window of half-width `half` around `center`, kept inside [0,size).
+    It slides away from the edge rather than being truncated, so the window
+    keeps its size wherever there is room, and it is never empty.
+
+    Needed because negative slice bounds in numpy wrap around: a window around
+    a center closer to the edge than `half` would come back empty (and crash
+    GaussianBlur), and one around a center outside the image would come back
+    full-sized but silently taken from the opposite side.
+    '''
+    size = int(size)
+    if size <= 0:
+        return 0,0
+    half = max(int(half),1)
+    lo,hi = int(center) - half, int(center) + half
+    if lo < 0:
+        hi -= lo
+        lo = 0
+    if hi > size:
+        lo -= hi - size
+        hi = size
+    return max(lo,0),min(hi,size)
+
 def extractPupilShapeAnalysis(img,params,
                               ROIpoints = [],
                               expectedDiam = None,
@@ -62,16 +88,21 @@ def extractPupilShapeAnalysis(img,params,
                 params['crApprox'] = [maxL[0]+x1,maxL[1]+y1]
             except Exception as e:
                  print(e)
-    if not params['crApprox'] is None:
+    # The corneal reflection window. crApprox is in full frame coordinates and
+    # survives both ROI edits and frame changes, so it can sit near - or past -
+    # the edge of the current crop; clamp the window instead of slicing blind.
+    hasCR = not params['crApprox'] is None
+    if hasCR:
         crA,crB =[int(w*params['crFrac']),int(h*params['crFrac'])]
-        crtmp = img[
-            params['crApprox'][1] - y1 - crB:params['crApprox'][1] - y1 + crB,
-            params['crApprox'][0] - x1 - crA:params['crApprox'][0]  - x1 + crA].copy()
+        crx = clampWindow(params['crApprox'][0] - x1, crA, img.shape[1])
+        cry = clampWindow(params['crApprox'][1] - y1, crB, img.shape[0])
+        hasCR = crx[1] > crx[0] and cry[1] > cry[0]
+    if hasCR:
+        crtmp = img[cry[0]:cry[1],crx[0]:crx[1]].copy()
         crtmp = cv2.GaussianBlur(crtmp, (21, 21), 2)
         minV,maxV,minL,maxL = cv2.minMaxLoc(crtmp)
         # Testing the averaging
-        maxL = (maxL[0] + params['crApprox'][0] - x1 - crA,
-                maxL[1] + params['crApprox'][1] - y1 - crB)
+        maxL = (maxL[0] + crx[0], maxL[1] + cry[0])
     else:
         maxL = (0,0)
     params['imagecropidx'] = (x1, y1, w, h)
@@ -103,11 +134,10 @@ def extractPupilShapeAnalysis(img,params,
         img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     # Threshold image
     if params['invertThreshold']:
-        if not params['crApprox'] is None:
-            tmp = img[params['crApprox'][1] - y1 - crB:params['crApprox'][1] - y1 + crB,
-                      params['crApprox'][0] - x1 - crA:params['crApprox'][0]  - x1 + crA]
-            img[params['crApprox'][1] - y1 - crB:params['crApprox'][1] - y1 + crB,
-                params['crApprox'][0] - x1 - crA:params['crApprox'][0]  - x1 + crA] = (tmp.astype(
+        if hasCR and maxV > 0:
+            # Same window as crtmp above, so the shapes always match.
+            tmp = img[cry[0]:cry[1],crx[0]:crx[1]]
+            img[cry[0]:cry[1],crx[0]:crx[1]] = (tmp.astype(
                     np.float32) * (1. - crtmp/float(maxV))).astype(img.dtype)
         ret,thresh = cv2.threshold(img,params['threshold'],255,0)
         thresh = cv2.bitwise_not(thresh)
@@ -121,7 +151,7 @@ def extractPupilShapeAnalysis(img,params,
     # For displaying the corneal reflection
     if drawProcessedFrame:
         outimg = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
-    if not params['crApprox'] is None:
+    if hasCR:
         outimg = cv2.circle(outimg, maxL, 2, (0,0,255), 1)
     # Shape analysis (get the area of each contour)
 
